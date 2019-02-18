@@ -6,8 +6,6 @@ import dlib
 import cv2
 import time
 
-capture = cv2.VideoCapture(0)
-
 shape_predictor = "shape_predictor_68_face_landmarks.dat"
 detector = dlib.get_frontal_face_detector()
 predictor = dlib.shape_predictor(shape_predictor)
@@ -16,16 +14,24 @@ YELLOW_COLOR = (0, 255, 255)
 (lStart, lEnd) = face_utils.FACIAL_LANDMARKS_IDXS["left_eye"]
 (rStart, rEnd) = face_utils.FACIAL_LANDMARKS_IDXS["right_eye"]
 def main():
+	capture = cv2.VideoCapture(0)
 	while True:
 		_, frame = capture.read()
+		print("it\n")
+########	cv2.imshow("Frame", frame)
+########	cv2.waitKey(1)
 		gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-		rects=detector(gray,1)
+		rects=detector(gray,0)
 		if len(rects) > 0:
 			rect = rects[0]
 		else:
 			cv2.imshow("Frame", frame)
-			key = cv2.waitKey(1) & 0xFF
+			cv2.waitKey(1)
 			continue
+
+########	else:
+########		cv2.imshow("Frame", frame)
+########		key = cv2.waitKey(1) & 0xFF
 		shape = predictor(gray, rect)
 		shape = face_utils.shape_to_np(shape)
 		leftEye = shape[lStart:lEnd]
@@ -36,8 +42,9 @@ def main():
 		cv2.drawContours(frame, [leftEyeHull], -1, YELLOW_COLOR, 1)
 		cv2.drawContours(frame, [rightEyeHull], -1, YELLOW_COLOR, 1)
 		cv2.imshow("Frame", frame)
-		if cv2.waitKey(1) & 0xFF == ord('q'):
-			break
+		cv2.waitKey(1)
+########	if cv2.waitKey(1) & 0xFF == ord('q'):
+########		break
 
 
 main()
