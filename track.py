@@ -15,11 +15,11 @@ YELLOW_COLOR = (0, 255, 255)
 (rStart, rEnd) = face_utils.FACIAL_LANDMARKS_IDXS["right_eye"]
 def main():
 	capture = cv2.VideoCapture(0)
+	begin_t=time.time()
 	while True:
+		print(time.time()-begin_t)
 		_, frame = capture.read()
 		print("it\n")
-########	cv2.imshow("Frame", frame)
-########	cv2.waitKey(1)
 		gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 		rects=detector(gray,0)
 		if len(rects) > 0:
@@ -28,10 +28,6 @@ def main():
 			cv2.imshow("Frame", frame)
 			cv2.waitKey(1)
 			continue
-
-########	else:
-########		cv2.imshow("Frame", frame)
-########		key = cv2.waitKey(1) & 0xFF
 		shape = predictor(gray, rect)
 		shape = face_utils.shape_to_np(shape)
 		leftEye = shape[lStart:lEnd]
@@ -43,8 +39,4 @@ def main():
 		cv2.drawContours(frame, [rightEyeHull], -1, YELLOW_COLOR, 1)
 		cv2.imshow("Frame", frame)
 		cv2.waitKey(1)
-########	if cv2.waitKey(1) & 0xFF == ord('q'):
-########		break
-
-
 main()
