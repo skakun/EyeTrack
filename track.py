@@ -18,12 +18,12 @@ def reyeBox(shape, frame):
 	miny=int((shape[38][1]+shape[39][1])/2)
 	minx=shape[37][0]
 	maxx=shape[40][0]
-	marginx=2*(maxx-minx)
-	marginy=2*(maxy-miny)
-########maxy+=marginy
-########miny-=marginy
-########maxx+=marginx
-########minx-=marginx
+	marginx=1*(maxx-minx)
+	marginy=1*(maxy-miny)
+	maxy+=marginy
+	miny-=marginy
+	maxx+=marginx
+	minx-=marginx
 	print("reye\n")
 	print("miny: {} \n maxy: {} \n minx: {} \n maxx: {} \n".format(miny,maxy,minx,maxx))
 	shiftbox={
@@ -73,15 +73,20 @@ def main():
 		gframe = cv2.GaussianBlur(gframe, (radius,radius), 0)
 		(minVal, maxVal, minLoc, maxLoc) = cv2.minMaxLoc(gframe)
 		(reye,rshiftbox)=reyeBox(shape,frame)
+		rscope=rshiftbox["maxx"]-rshiftbox["minx"],rshiftbox["maxy"]-rshiftbox["miny"]
+		print("Reye scope:/n x: {} /n y:{}".format(rscope[0],rscope[1]))
+		if rscope[0]<=0 or rscope[1]<=0:
+			cv2.imshow("Frame", frame)
+			cv2.waitKey(1)
+			continue
 		breye=cv2.cvtColor(reye, cv2.COLOR_BGR2GRAY)
 		breye=cv2.GaussianBlur(breye, (radius,radius), 0)
 
 		(rminVal, rmaxVal, rminLoc, rmaxLoc) = cv2.minMaxLoc(breye)
-		print("Reye scope:/n x: {} /n y:{}".format(rshiftbox["maxx"]-rshiftbox["minx"],rshiftbox["maxy"]-rshiftbox["miny"]))
 		rshiftedLoc=(rminLoc[0]+rshiftbox["minx"],rminLoc[1]+rshiftbox["miny"])
 		print("rminloc:\n \t within eye: {}\n within frame \n \t {}".format(rminLoc,rshiftedLoc))
 #	cv2.circle(reye, rminLoc,radius, (0, 255, 0), 2)
-	#cv2.imshow("reye",reye)
+		cv2.imshow("reye",reye)
 		cv2.drawContours(frame, [leftEyeHull], -1, YELLOW_COLOR, 1)
 		cv2.drawContours(frame, [rightEyeHull], -1, YELLOW_COLOR, 1)
 #	ret,tresh=cv2.threshold(frame,170,255,cv2.THRESH_BINARY)
