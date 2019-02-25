@@ -24,7 +24,6 @@ def reyeBox(shape, frame):
 ########miny-=marginy
 ########maxx+=marginx
 ########minx-=marginx
-	
 	print("reye\n")
 	print("miny: {} \n maxy: {} \n minx: {} \n maxx: {} \n".format(miny,maxy,minx,maxx))
 	shiftbox={
@@ -35,28 +34,27 @@ def reyeBox(shape, frame):
 		}
 	return frame[miny:maxy,minx:maxx],shiftbox
 
-def leyeBox(shape, frame):
-	miny=int((shape[44][1]+shape[45][1])/2)
-	maxy=int((shape[48][1]+shape[47][1])/2)
-	minx=shape[43][0]
-	maxx=shape[46][0]
-	marginx=(maxx-minx)
-	marginy=(maxy-miny)
-	maxy+=marginy
-	miny-=marginy
-	maxx+=marginx
-	minx-=marginx
-	print("leye\n")
-	print("miny: {} \n maxy: {} \n minx: {} \n maxx: {} \n".format(miny,maxy,minx,maxx))
-	return frame[miny:maxy,minx:maxx]
+########def leyeBox(shape, frame):
+########	miny=int((shape[44][1]+shape[45][1])/2)
+########	maxy=int((shape[48][1]+shape[47][1])/2)
+########	minx=shape[43][0]
+########	maxx=shape[46][0]
+########	marginx=(maxx-minx)
+########	marginy=(maxy-miny)
+########	maxy+=marginy
+########	miny-=marginy
+########	maxx+=marginx
+########	minx-=marginx
+########	print("leye\n")
+########	print("miny: {} \n maxy: {} \n minx: {} \n maxx: {} \n".format(miny,maxy,minx,maxx))
+########	return frame[miny:maxy,minx:maxx]
 def main():
 	capture = cv2.VideoCapture(0)
 	begin_t=time.time()
 	radius=5
 	while True:
-#	print(time.time()-begin_t)
+#print("Iteration time: {}".format(time.time()-begin_t))
 		_, frame = capture.read()
-#	print("it\n")
 		gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 		rects=detector(gray,0)
 		if len(rects) > 0:
@@ -80,16 +78,14 @@ def main():
 
 		(rminVal, rmaxVal, rminLoc, rmaxLoc) = cv2.minMaxLoc(breye)
 		print("Reye scope:/n x: {} /n y:{}".format(rshiftbox["maxx"]-rshiftbox["minx"],rshiftbox["maxy"]-rshiftbox["miny"]))
-#	rminLoc=(rminLoc[0]-rshiftbox["minx"],rminLoc[1]-rshiftbox["miny"])
-		print("rminloc: {}\n".format(rminLoc))
-		cv2.circle(reye, rminLoc,radius, (0, 255, 0), 2)
-		cv2.imshow("reye",reye)
-#	cv2.imshow("leye",leye)
+		rshiftedLoc=(rminLoc[0]+rshiftbox["minx"],rminLoc[1]+rshiftbox["miny"])
+		print("rminloc:\n \t within eye: {}\n within frame \n \t {}".format(rminLoc,rshiftedLoc))
+#	cv2.circle(reye, rminLoc,radius, (0, 255, 0), 2)
+	#cv2.imshow("reye",reye)
 		cv2.drawContours(frame, [leftEyeHull], -1, YELLOW_COLOR, 1)
 		cv2.drawContours(frame, [rightEyeHull], -1, YELLOW_COLOR, 1)
-		ret,tresh=cv2.threshold(frame,170,255,cv2.THRESH_BINARY)
-#	cv2.circle(frame, minLoc,radius, (0, 255, 0), 2)
-	#cv2.imshow("tresh", tresh)
+#	ret,tresh=cv2.threshold(frame,170,255,cv2.THRESH_BINARY)
+		cv2.circle(frame, rshiftedLoc,radius, (0, 255, 0), 2)
 		cv2.imshow("Frame", frame)
 		cv2.waitKey(1)
 main()
