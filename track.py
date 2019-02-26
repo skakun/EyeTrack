@@ -5,7 +5,6 @@ import imutils
 import dlib
 import cv2
 import time
-
 shape_predictor = "shape_predictor_68_face_landmarks.dat"
 detector = dlib.get_frontal_face_detector()
 predictor = dlib.shape_predictor(shape_predictor)
@@ -48,8 +47,11 @@ def reyeBox(shape, frame):
 ########	print("leye\n")
 ########	print("miny: {} \n maxy: {} \n minx: {} \n maxx: {} \n".format(miny,maxy,minx,maxx))
 ########	return frame[miny:maxy,minx:maxx]
+def transPoint(point,oldScope,newScope,resc=(1,1)):
+	return (int(resc[0]*point[0]/oldScope[0]*newScope[0]) ,int(resc[1]*point[1]/oldScope[1]*newScope[1]))
+
 def main():
-	capture = cv2.VideoCapture(0)
+	capture = cv2.VideoCapture(2)
 	begin_t=time.time()
 	radius=5
 	while True:
@@ -76,7 +78,7 @@ def main():
 		rscope=rshiftbox["maxx"]-rshiftbox["minx"],rshiftbox["maxy"]-rshiftbox["miny"]
 		print("Reye scope:/n x: {} /n y:{}".format(rscope[0],rscope[1]))
 		if rscope[0]<=0 or rscope[1]<=0:
-			cv2.imshow("Frame", frame)
+#		cv2.imshow("Frame", frame)
 			cv2.waitKey(1)
 			continue
 		breye=cv2.cvtColor(reye, cv2.COLOR_BGR2GRAY)
@@ -86,11 +88,16 @@ def main():
 		rshiftedLoc=(rminLoc[0]+rshiftbox["minx"],rminLoc[1]+rshiftbox["miny"])
 		print("rminloc:\n \t within eye: {}\n within frame \n \t {}".format(rminLoc,rshiftedLoc))
 #	cv2.circle(reye, rminLoc,radius, (0, 255, 0), 2)
-		cv2.imshow("reye",reye)
+#	cv2.imshow("reye",reye)
 		cv2.drawContours(frame, [leftEyeHull], -1, YELLOW_COLOR, 1)
 		cv2.drawContours(frame, [rightEyeHull], -1, YELLOW_COLOR, 1)
-#	ret,tresh=cv2.threshold(frame,170,255,cv2.THRESH_BINARY)
 		cv2.circle(frame, rshiftedLoc,radius, (0, 255, 0), 2)
 		cv2.imshow("Frame", frame)
+		sshot=cv2.imread('idylla.jpg',0)
+		cursorPos=transPoint(rminLoc,rscope,sshot.shape[:2],(1,1))
+	#sshot = pag.screenshot()
+		sshot = cv2.cvtColor(np.array(sshot), cv2.COLOR_RGB2BGR)
+		cv2.circle(sshot, cursorPos,radius, (0, 0, 255), 2)
+		cv2.imshow("Screenshot", sshot)
 		cv2.waitKey(1)
 main()
