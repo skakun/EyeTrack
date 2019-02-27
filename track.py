@@ -19,10 +19,10 @@ def reyeBox(shape, frame):
 	maxx=shape[40][0]
 	marginx=1*(maxx-minx)
 	marginy=1*(maxy-miny)
-	maxy+=marginy
-	miny-=marginy
-	maxx+=marginx
-	minx-=marginx
+########maxy+=marginy
+########miny-=marginy
+########maxx+=marginx
+########minx-=marginx
 	print("reye\n")
 	print("miny: {} \n maxy: {} \n minx: {} \n maxx: {} \n".format(miny,maxy,minx,maxx))
 	shiftbox={
@@ -95,6 +95,7 @@ def main():
 		cv2.imshow("Frame", frame)
 		sshot=cv2.imread('idylla.jpg',0)
 		cursorPos=transPoint(rminLoc,rscope,sshot.shape[:2],(1,1))
+		print("Rescaled right retina pos to frame:\n x:{}\ny:{}".format(cursorPos[0],cursorPos[1]))
 	#sshot = pag.screenshot()
 		sshot = cv2.cvtColor(np.array(sshot), cv2.COLOR_RGB2BGR)
 		cv2.circle(sshot, cursorPos,radius, (0, 0, 255), 2)
