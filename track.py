@@ -58,10 +58,10 @@ class EyeSnip:
 
         marginx = int(0.2 * (maxx - minx))
         marginy = int(0.3 * (maxy - miny))
-        minx -= marginx
-        maxx += marginx
-        maxy += marginy
-        miny -= marginy
+#       minx -= marginx
+#       maxx += marginx
+#       maxy += marginy
+#       miny -= marginy
         shiftbox = {
             "minx": minx,
             "maxx": maxx,
