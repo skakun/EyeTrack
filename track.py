@@ -15,8 +15,10 @@ class EyeSnip:
         self.snip, self.shiftbox, self.eye_aspect_ratio = EyeSnip.eye_box(frame, shape, side)
         self.scope = self.shiftbox["maxx"] - self.shiftbox["minx"], self.shiftbox["maxy"] - self.shiftbox["miny"]
         self.scope_OK = not (self.scope[0] <= 0 or self.scope[1] <= 0)
-        self.shiftbox_OK = not (self.shiftbox["minx"] < 0 or self.shiftbox["maxx"] > WIDTH or
-                                self.shiftbox["miny"] < 0 or self.shiftbox["maxy"] > HEIGHT)
+ #      self.shiftbox_OK = not (self.shiftbox["minx"] < 0 or self.shiftbox["maxx"] > WIDTH or
+ #                              self.shiftbox["miny"] < 0 or self.shiftbox["maxy"] > HEIGHT)
+        self.shiftbox_OK=True
+
 
     def calc_darkest_point(self):
         blur_snip = cv2.cvtColor(self.snip, cv2.COLOR_BGR2GRAY)
@@ -89,7 +91,7 @@ def cursor_position(event, x, y, flags, param):
 
 
 def main():
-    capture = cv2.VideoCapture(2)
+    capture = cv2.VideoCapture(0)
 
     # set click coordinates helper #
     cv2.namedWindow('Frame')
