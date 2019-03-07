@@ -19,8 +19,9 @@ class EyeSnip:
         self.snip, self.shiftbox, self.eye_aspect_ratio = EyeSnip.eye_box(frame, shape, side)
         self.scope = self.shiftbox["maxx"] - self.shiftbox["minx"], self.shiftbox["maxy"] - self.shiftbox["miny"]
         self.scope_OK = not (self.scope[0] <= 0 or self.scope[1] <= 0)
-        self.shiftbox_OK = not (self.shiftbox["minx"] < 0 or self.shiftbox["maxx"] > WIDTH or
-                                self.shiftbox["miny"] < 0 or self.shiftbox["maxy"] > HEIGHT)
+        # self.shiftbox_OK = not (self.shiftbox["minx"] < 0 or self.shiftbox["maxx"] > WIDTH or
+        #                         self.shiftbox["miny"] < 0 or self.shiftbox["maxy"] > HEIGHT)
+        self.shiftbox_OK = True
         self.eye_closed = self.eye_aspect_ratio < self.EYE_CLOSED_EAR_THRESHOLD
 
     def calc_darkest_point(self):
@@ -36,7 +37,7 @@ class EyeSnip:
     def canny_edges(self):
         blur_snip = cv2.cvtColor(self.snip, cv2.COLOR_BGR2GRAY)
         blur_snip = cv2.GaussianBlur(blur_snip, (radius, radius), 0)
-        low_threshold = 30
+        low_threshold = 35
         high_threshold = low_threshold * 3
         eye_edges = cv2.Canny(blur_snip, low_threshold, high_threshold)
         return eye_edges
@@ -59,12 +60,12 @@ class EyeSnip:
             eye_aspect_ratio = (distance.euclidean(shape[43], shape[47]) + distance.euclidean(shape[44], shape[46])) / (
                                 2 * distance.euclidean(shape[42], shape[45]))
 
-        marginx = int(0.2 * (maxx - minx))
-        marginy = int(0.3 * (maxy - miny))
-        minx -= marginx
-        maxx += marginx
-        maxy += marginy
-        miny -= marginy
+        # marginx = int(0.2 * (maxx - minx))
+        # marginy = int(0.3 * (maxy - miny))
+        # minx -= marginx
+        # maxx += marginx
+        # maxy += marginy
+        # miny -= marginy
         shiftbox = {
             "minx": minx,
             "maxx": maxx,
@@ -128,10 +129,11 @@ def main():
         if not (reye.scope_OK and reye.shiftbox_OK and
                 leye.scope_OK and leye.shiftbox_OK):
             cv2.imshow("Frame", frame)
+            print("not ok\n")
             if cv2.waitKey(1) == ord('q'):
                 break
             continue
-        #print("Right eye:\n Retina pos in frame: {} \n Retina pos in snip: {}\n Ear:{}".format(
+        # print("Right eye:\n Retina pos in frame: {} \n Retina pos in snip: {}\n Ear:{}".format(
         #    reye.calc_shifted_darkest_point(), reye.calc_darkest_point(), reye.eye_aspect_ratio))
 
         # check eye aspect ratio #
