@@ -6,18 +6,22 @@ import dlib
 import cv2
 import time
 from scipy.spatial import distance
+import matplotlib.pyplot as plt
 
 radius = 5
 WIDTH, HEIGHT = 640, 480
 
 
 class EyeSnip:
+    EYE_CLOSED_EAR_THRESHOLD = 0.12
+
     def __init__(self, frame, shape, side):
         self.snip, self.shiftbox, self.eye_aspect_ratio = EyeSnip.eye_box(frame, shape, side)
         self.scope = self.shiftbox["maxx"] - self.shiftbox["minx"], self.shiftbox["maxy"] - self.shiftbox["miny"]
         self.scope_OK = not (self.scope[0] <= 0 or self.scope[1] <= 0)
         self.shiftbox_OK = not (self.shiftbox["minx"] < 0 or self.shiftbox["maxx"] > WIDTH or
                                 self.shiftbox["miny"] < 0 or self.shiftbox["maxy"] > HEIGHT)
+        self.eye_closed = self.eye_aspect_ratio < self.EYE_CLOSED_EAR_THRESHOLD
 
     def calc_darkest_point(self):
         blur_snip = cv2.cvtColor(self.snip, cv2.COLOR_BGR2GRAY)
@@ -32,7 +36,7 @@ class EyeSnip:
     def canny_edges(self):
         blur_snip = cv2.cvtColor(self.snip, cv2.COLOR_BGR2GRAY)
         blur_snip = cv2.GaussianBlur(blur_snip, (radius, radius), 0)
-        low_threshold = 35
+        low_threshold = 30
         high_threshold = low_threshold * 3
         eye_edges = cv2.Canny(blur_snip, low_threshold, high_threshold)
         return eye_edges
@@ -96,6 +100,8 @@ def main():
     cv2.namedWindow('Frame')
     cv2.setMouseCallback('Frame', cursor_position)
 
+    rear_list = []
+    lear_list = []
     # begin_t = time.time()
     while True:
         # print("Iteration time: {}".format(time.time()-begin_t))
@@ -125,8 +131,17 @@ def main():
             if cv2.waitKey(1) == ord('q'):
                 break
             continue
-        print("Right eye:\n Retina pos in frame: {} \n Retina pos in snip: {}\n Ear:{}".format(
-            reye.calc_shifted_darkest_point(), reye.calc_darkest_point(), reye.eye_aspect_ratio))
+        #print("Right eye:\n Retina pos in frame: {} \n Retina pos in snip: {}\n Ear:{}".format(
+        #    reye.calc_shifted_darkest_point(), reye.calc_darkest_point(), reye.eye_aspect_ratio))
+
+        # check eye aspect ratio #
+        if len(rear_list) == 1000:
+            rear_list = rear_list[1:]
+            lear_list = lear_list[1:]
+        rear_list.append(reye.eye_aspect_ratio)
+        lear_list.append(leye.eye_aspect_ratio)
+        if reye.eye_closed and leye.eye_closed:
+            print("Eyes closed\nEAR: " + str(reye.eye_aspect_ratio) + ", " + str(leye.eye_aspect_ratio))
 
         # display resized right eye in gray #
         greye_area = cv2.cvtColor(reye.snip, cv2.COLOR_BGR2GRAY)
@@ -177,6 +192,12 @@ def main():
 
         if cv2.waitKey(1) == ord('q'):
             break
+
+    # plot eye aspect ratio data #
+    plt.plot(rear_list, label='Right eye')
+    plt.plot(lear_list, label='Left eye')
+    plt.legend()
+    plt.show()
 
 
 if __name__ == '__main__':
