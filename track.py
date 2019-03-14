@@ -5,9 +5,9 @@ import imutils
 import dlib
 import cv2
 import time
-from scipy.spatial import distance
 radius = 5
 WIDTH, HEIGHT = 640, 480
+from scipy.spatial import distance
 
 
 class EyeSnip:
@@ -18,8 +18,26 @@ class EyeSnip:
  #      self.shiftbox_OK = not (self.shiftbox["minx"] < 0 or self.shiftbox["maxx"] > WIDTH or
  #                              self.shiftbox["miny"] < 0 or self.shiftbox["maxy"] > HEIGHT)
         self.shiftbox_OK=True
-
-
+        self.gray_snip= cv2.cvtColor(self.snip,cv2.COLOR_BGR2GRAY)
+    def get_countur(self):
+        blurred = cv2.GaussianBlur(self.gray_snip, (5, 5), 0)
+        thresh = cv2.threshold(blurred, 60, 255, cv2.THRESH_BINARY_INV)[1]
+        cnts = cv2.findContours(thresh.copy(), cv2.RETR_EXTERNAL,
+        cv2.CHAIN_APPROX_SIMPLE)
+        cnts = imutils.grab_contours(cnts)
+        image=self.snip.copy()
+        for c in cnts:
+        # compute the center of the contour
+            M = cv2.moments(c)
+            if M["m00"]==0:
+                continue
+            cX = int(M["m10"] / M["m00"])
+            cY = int(M["m01"] / M["m00"])
+            cv2.drawContours(image, [c], -1, (0, 255, 0), 2)
+        cv2.circle(image, (cX, cY), 7, (255, 255, 255), -1)
+        cv2.putText(image, "center", (cX - 20, cY - 20),
+        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
+        return image
     def calc_darkest_point(self):
         blur_snip = cv2.cvtColor(self.snip, cv2.COLOR_BGR2GRAY)
         blur_snip = cv2.GaussianBlur(blur_snip, (radius, radius), 0)
@@ -56,12 +74,12 @@ class EyeSnip:
             eye_aspect_ratio = (distance.euclidean(shape[43], shape[47]) + distance.euclidean(shape[44], shape[46])) / (
                                 2 * distance.euclidean(shape[42], shape[45]))
 
-        marginx = int(0.2 * (maxx - minx))
-        marginy = int(0.3 * (maxy - miny))
-#       minx -= marginx
-#       maxx += marginx
-#       maxy += marginy
-#       miny -= marginy
+        marginx = int(0.1 * (maxx - minx))
+        marginy = int(0.1 * (maxy - miny))
+        minx -= marginx
+        maxx += marginx
+     #  maxy += marginy
+     #  miny -= marginy
         shiftbox = {
             "minx": minx,
             "maxx": maxx,
@@ -69,6 +87,29 @@ class EyeSnip:
             "maxy": maxy
         }
         return frame[miny:maxy, minx:maxx], shiftbox, eye_aspect_ratio
+    def get_thresh(self):
+        ret, thresh = cv2.threshold(self.gray_snip,0,255,cv2.THRESH_BINARY+cv2.THRESH_OTSU)
+        return thresh
+    def get_blur_thresh(self):
+        blurred = cv2.GaussianBlur(self.gray_snip, (5, 5), 0)
+        ret, thresh = cv2.threshold(blurred,0,255,cv2.THRESH_BINARY+cv2.THRESH_OTSU)
+        return thresh
+
+    def get_segments(self):
+        thresh=self.get_thresh()
+        fg=cv2.erode(thresh,None,iterations=2)
+        bgt=cv2.dilate(thresh,None,iterations=3)
+        ret,bg=cv2.threshold(bgt,1,128,1)
+        marker=cv2.add(fg,bg)
+        marker32 = np.int32(marker)
+        cv2.watershed(self.snip,marker32)
+        m = cv2.convertScaleAbs(marker32)
+        ret,thresh = cv2.threshold(m,0,255,cv2.THRESH_BINARY_INV+cv2.THRESH_OTSU)
+        res = cv2.bitwise_and(self.snip,self.snip,mask = thresh)
+#       res[marker ==-1]=[255,0,0]
+        return  res
+#def segment_edges(self):
+#       img=self.canny_edges()
 
 
 shape_predictor = "shape_predictor_68_face_landmarks.dat"
@@ -93,9 +134,11 @@ def cursor_position(event, x, y, flags, param):
 def main():
     capture = cv2.VideoCapture(0)
 
+    capture.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
+    capture.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
     # set click coordinates helper #
-    cv2.namedWindow('Frame')
-    cv2.setMouseCallback('Frame', cursor_position)
+#   cv2.namedWindow('Frame')
+#   cv2.setMouseCallback('Frame', cursor_position)
 
     # begin_t = time.time()
     while True:
@@ -122,7 +165,7 @@ def main():
         leye = EyeSnip(frame, shape, 'l')
         if not (reye.scope_OK and reye.shiftbox_OK and
                 leye.scope_OK and leye.shiftbox_OK):
-            cv2.imshow("Frame", frame)
+#           cv2.imshow("Frame", frame)
             print("not ok\n")
             if cv2.waitKey(1) == ord('q'):
                 break
@@ -134,8 +177,8 @@ def main():
         greye_area = cv2.cvtColor(reye.snip, cv2.COLOR_BGR2GRAY)
         dim = (greye_area.shape[1] * 3, greye_area.shape[0] * 3)
         resized_greye_area = cv2.resize(greye_area, dim, interpolation=cv2.INTER_AREA)
-        cv2.imshow("Right eye", resized_greye_area)
-
+    #   cv2.imshow("Right eye", resized_greye_area)
+    #   cv2.imshow("tresh",cv2.resize(reye.get_thresh(),dim,interpolation=cv2.INTER_AREA))
         # find pupil in eye region #
 
         # (canny edges) #
@@ -145,7 +188,7 @@ def main():
         cv2.imshow("Edges", resized_reye_edges)
 
         # (darkest point/eye aspect ratio) #
-        cv2.circle(reye.snip, reye.calc_darkest_point(), radius, (0, 255, 0), 2)
+    #   cv2.circle(reye.snip, reye.calc_darkest_point(), radius, (0, 255, 0), 2)
         cv2.circle(leye.snip, leye.calc_darkest_point(), radius, (0, 255, 0), 2)
         # cv2.circle(frame, reye.calc_shifted_darkest_point(), radius, (0, 255, 0), 2)
         # cv2.circle(frame, leye.calc_shifted_darkest_point(), radius, (0, 255, 0), 2)
@@ -157,7 +200,7 @@ def main():
             rect.top() < 0 or rect.bottom() < 0 or
             rect.left() < 0 or rect.right() < 0
         ):
-            cv2.imshow("Frame", frame)
+           #cv2.imshow("Frame", frame)
             if cv2.waitKey(1) == ord('q'):
                 break
             continue
@@ -166,7 +209,7 @@ def main():
         face = frame[rect.top():rect.bottom(), rect.left():rect.right()]
         dim = (face.shape[1] * 3, face.shape[0] * 3)
         face = cv2.resize(face, dim, interpolation=cv2.INTER_AREA)
-        cv2.imshow("Face", face)
+#       cv2.imshow("Face", face)
 
         cv2.rectangle(frame, (rect.left(), rect.top()), (rect.right(), rect.bottom()), YELLOW_COLOR)
         cv2.imshow("Frame", frame)
@@ -176,10 +219,12 @@ def main():
         # cursorPos=transPoint(reye.calc_darkest_point(),reye.scope,sshot.shape[:2],(1,1))
         # cv2.circle(sshot, cursorPos,radius, (0, 0, 255), 2)
         # cv2.imshow("Screenshot", sshot)
-
+    #   cv2.imshow("segments", cv2.resize(reye.get_segments(), dim, interpolation=cv2.INTER_AREA))
+     #  cv2.imshow("thresh",reye.get_thresh())
+     #  cv2.imshow("segments",reye.get_segments())
+        cv2.imshow("contour",reye.get_countur())
         if cv2.waitKey(1) == ord('q'):
             break
-
 
 if __name__ == '__main__':
     main()
