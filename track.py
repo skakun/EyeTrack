@@ -5,9 +5,10 @@ import imutils
 import dlib
 import cv2
 import time
+from scipy.spatial import distance
 radius = 5
 WIDTH, HEIGHT = 640, 480
-from scipy.spatial import distance
+eye_cascade = cv2.CascadeClassifier('haarcascade_eye_tree_eyeglasses.xml')
 class EyeSnipper:
     @staticmethod
     def eye_box_hull(frame, shape, side):
@@ -47,19 +48,40 @@ class EyeSnipper:
         snip=EyeSnip(cropped_frame,side,shiftbox,scope)
         snip.check_scope()
         snip.shiftbox_OK=True
-        snip.eye_aspect_ratio=ear
+        snip.eye_aspect_ratio=1
         return snip
-
-
+    @staticmethod
+    def get_from_haar(frame,cascade):
+        gray=cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        eyes=cascade.detectMultiScale(gray)
+        if len(eyes)==0:
+            return None,False
+        eye=eyes[0]
+        minx=eye[0]
+        maxx=eye[0]+eye[2]
+        miny=eye[1]
+        maxy=eye[1]+eye[3]
+        marginx = int(0.2 * (maxx - minx))
+        marginy = int(0.2 * (maxy - miny))
+        minx += marginx
+        maxx -= marginx
+        maxy -= marginy
+        miny += marginy
+        shiftbox = {
+            "minx": minx,
+            "maxx": maxx,
+            "miny": miny,
+            "maxy": maxy
+        }
+        cropped_frame= frame[miny:maxy, minx:maxx]
+        scope= shiftbox["maxx"] - shiftbox["minx"], shiftbox["maxy"] - shiftbox["miny"]
+        side='r'
+        snip=EyeSnip(cropped_frame,side,shiftbox,scope)
+        snip.check_scope()
+        snip.shiftbox_OK=True
+        snip.eye_aspect_ratio=1
+        return snip,True
 class EyeSnip:
-#   def __init__(self, frame, shape, side):
-#       self.snip, self.shiftbox, self.eye_aspect_ratio = EyeSnip.eye_box(frame, shape, side)
-#       self.scope = self.shiftbox["maxx"] - self.shiftbox["minx"], self.shiftbox["maxy"] - self.shiftbox["miny"]
-#       self.scope_OK = not (self.scope[0] <= 0 or self.scope[1] <= 0)
-##      self.shiftbox_OK = not (self.shiftbox["minx"] < 0 or self.shiftbox["maxx"] > WIDTH or
-##                              self.shiftbox["miny"] < 0 or self.shiftbox["maxy"] > HEIGHT)
-#       self.shiftbox_OK=True
-#       self.gray_snip= cv2.cvtColor(self.snip,cv2.COLOR_BGR2GRAY)
     def __init__(self,snip,side,shiftbox,scope):
         self.snip=snip
         self.side=side
@@ -84,7 +106,7 @@ class EyeSnip:
             cX = int(M["m10"] / M["m00"])
             cY = int(M["m01"] / M["m00"])
             cv2.drawContours(image, [c], -1, (0, 255, 0), 2)
-        cv2.circle(image, (cX, cY), 7, (255, 255, 255), -1)
+       #cv2.circle(image, (cX, cY), 7, (255, 255, 255), -1)
         cv2.putText(image, "center", (cX - 20, cY - 20),
         cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
         return image
@@ -151,10 +173,11 @@ def cursor_position(event, x, y, flags, param):
 
 
 def main():
-    capture = cv2.VideoCapture(0)
+    capture = cv2.VideoCapture(2)
 
     capture.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
     capture.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
+
     # set click coordinates helper #
 #   cv2.namedWindow('Frame')
 #   cv2.setMouseCallback('Frame', cursor_position)
@@ -166,83 +189,30 @@ def main():
         # find face and eyes #
         _, frame = capture.read()
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        rects = detector(gray, 0)
-        if len(rects) <= 0:
-            cv2.imshow("Frame", frame)
-            if cv2.waitKey(1) == ord('q'):
-                break
-            continue
-
-        rect = rects[0]
-        shape = predictor(gray, rect)
-        shape = face_utils.shape_to_np(shape)
-        left_eye = shape[lstart:lend]
-        right_eye = shape[rstart:rend]
-        left_eye_hull = cv2.convexHull(left_eye)
-        right_eye_hull = cv2.convexHull(right_eye)
-   #    reye = EyeSnip(frame, shape, 'r')
-   #    leye = EyeSnip(frame, shape, 'l')
-        reye=EyeSnipper.get_from_hull(frame,shape,'r')
-        leye=EyeSnipper.get_from_hull(frame,shape,'l')
-        if not (reye.scope_OK and reye.shiftbox_OK and
-                leye.scope_OK and leye.shiftbox_OK):
-#           cv2.imshow("Frame", frame)
-            print("not ok\n")
-            if cv2.waitKey(1) == ord('q'):
-                break
+        reye,OK=EyeSnipper.get_from_haar(frame,eye_cascade)
+        if not OK:
+            cv2.imshow('frame',frame)
             continue
         print("Right eye:\n Retina pos in frame: {} \n Retina pos in snip: {}\n Ear:{}".format(
             reye.calc_shifted_darkest_point(), reye.calc_darkest_point(), reye.eye_aspect_ratio))
+
+        cv2.circle(frame,reye.calc_shifted_darkest_point(),radius,(0, 255, 0))
 
         # display resized right eye in gray #
         greye_area = cv2.cvtColor(reye.snip, cv2.COLOR_BGR2GRAY)
         dim = (greye_area.shape[1] * 3, greye_area.shape[0] * 3)
         resized_greye_area = cv2.resize(greye_area, dim, interpolation=cv2.INTER_AREA)
-    #   cv2.imshow("Right eye", resized_greye_area)
-    #   cv2.imshow("tresh",cv2.resize(reye.get_thresh(),dim,interpolation=cv2.INTER_AREA))
-        # find pupil in eye region #
-
-        # (canny edges) #
         reye_edges = reye.canny_edges()
         dim = (reye_edges.shape[1] * 3, reye_edges.shape[0] * 3)
         resized_reye_edges = cv2.resize(reye_edges, dim, interpolation=cv2.INTER_AREA)
         cv2.imshow("Edges", resized_reye_edges)
-
-        # (darkest point/eye aspect ratio) #
-    #   cv2.circle(reye.snip, reye.calc_darkest_point(), radius, (0, 255, 0), 2)
-        cv2.circle(leye.snip, leye.calc_darkest_point(), radius, (0, 255, 0), 2)
-        # cv2.circle(frame, reye.calc_shifted_darkest_point(), radius, (0, 255, 0), 2)
-        # cv2.circle(frame, leye.calc_shifted_darkest_point(), radius, (0, 255, 0), 2)
-
-        # mark eye contours #
-        cv2.drawContours(frame, [left_eye_hull], -1, YELLOW_COLOR, 1)
-        cv2.drawContours(frame, [right_eye_hull], -1, YELLOW_COLOR, 1)
-        if (
-            rect.top() < 0 or rect.bottom() < 0 or
-            rect.left() < 0 or rect.right() < 0
-        ):
-           #cv2.imshow("Frame", frame)
-            if cv2.waitKey(1) == ord('q'):
-                break
-            continue
-
-        # display resized and mark face rectangle #
-        face = frame[rect.top():rect.bottom(), rect.left():rect.right()]
-        dim = (face.shape[1] * 3, face.shape[0] * 3)
-        face = cv2.resize(face, dim, interpolation=cv2.INTER_AREA)
-#       cv2.imshow("Face", face)
-
-        cv2.rectangle(frame, (rect.left(), rect.top()), (rect.right(), rect.bottom()), YELLOW_COLOR)
+        cv2.imshow("Frame", frame)
+        if cv2.waitKey(1) == ord('q'):
+            break
+        continue
         cv2.imshow("Frame", frame)
 
-        # sshot=cv2.imread('idylla.jpg',0)
-        # sshot = cv2.cvtColor(np.array(sshot), cv2.COLOR_RGB2BGR)
-        # cursorPos=transPoint(reye.calc_darkest_point(),reye.scope,sshot.shape[:2],(1,1))
-        # cv2.circle(sshot, cursorPos,radius, (0, 0, 255), 2)
-        # cv2.imshow("Screenshot", sshot)
-    #   cv2.imshow("segments", cv2.resize(reye.get_segments(), dim, interpolation=cv2.INTER_AREA))
-     #  cv2.imshow("thresh",reye.get_thresh())
-     #  cv2.imshow("segments",reye.get_segments())
+        cv2.imshow("segments",reye.get_segments())
         cv2.imshow("contour",reye.get_countur())
         if cv2.waitKey(1) == ord('q'):
             break
