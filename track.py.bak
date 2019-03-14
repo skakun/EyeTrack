@@ -40,15 +40,14 @@ class EyeSnipper:
             "maxy": maxy
         }
         return frame[miny:maxy, minx:maxx], shiftbox, eye_aspect_ratio
-    @staticmethod
-    def get_from_hull(frame,shape,side):
-        cropped_frame,shiftbox,ear=EyeSnipper.eye_box_hull(frame,shape,side)
-        scope= shiftbox["maxx"] - shiftbox["minx"], shiftbox["maxy"] - shiftbox["miny"]
-        snip=EyeSnip(cropped_frame,side,shiftbox,scope)
-        snip.check_scope()
-        snip.shiftbox_OK=True
-        snip.eye_aspect_ratio=ear
-        return snip
+	@abstractmethod
+	def get_from_hull(frame,shape,side):
+		cropped_frame,shiftbox,ear=eye_box_hull(frame,shape,side)
+		scope= shiftbox["maxx"] - shiftbox["minx"], shiftbox["maxy"] - shiftbox["miny"]
+		snip=EyeSnip(cropped_frame,side,shiftbox,scope)
+		snip.check_scope()
+                snip.shiftbox_OK=True
+                return snip
 
 
 class EyeSnip:
@@ -60,73 +59,72 @@ class EyeSnip:
 ##                              self.shiftbox["miny"] < 0 or self.shiftbox["maxy"] > HEIGHT)
 #       self.shiftbox_OK=True
 #       self.gray_snip= cv2.cvtColor(self.snip,cv2.COLOR_BGR2GRAY)
-    def __init__(self,snip,side,shiftbox,scope):
-        self.snip=snip
-        self.side=side
-        self.scope=scope
-        self.shiftbox=shiftbox
-        self.gray_snip= cv2.cvtColor(self.snip,cv2.COLOR_BGR2GRAY)
-    def check_scope(self):
-        self.scope_OK=not (self.scope[0] <= 0 or self.scope[1] <= 0)
-        return self.scope_OK
-    def get_countur(self):
-        blurred = cv2.GaussianBlur(self.gray_snip, (5, 5), 0)
-        thresh = cv2.threshold(blurred, 60, 255, cv2.THRESH_BINARY_INV)[1]
-        cnts = cv2.findContours(thresh.copy(), cv2.RETR_EXTERNAL,
-        cv2.CHAIN_APPROX_SIMPLE)
-        cnts = imutils.grab_contours(cnts)
-        image=self.snip.copy()
-        for c in cnts:
-        # compute the center of the contour
-            M = cv2.moments(c)
-            if M["m00"]==0:
-                continue
-            cX = int(M["m10"] / M["m00"])
-            cY = int(M["m01"] / M["m00"])
-            cv2.drawContours(image, [c], -1, (0, 255, 0), 2)
-        cv2.circle(image, (cX, cY), 7, (255, 255, 255), -1)
-        cv2.putText(image, "center", (cX - 20, cY - 20),
-        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
-        return image
-    def calc_darkest_point(self):
-        blur_snip = cv2.cvtColor(self.snip, cv2.COLOR_BGR2GRAY)
-        blur_snip = cv2.GaussianBlur(blur_snip, (radius, radius), 0)
-        (min_val, max_val, min_loc, max_loc) = cv2.minMaxLoc(blur_snip)
-        return min_loc
+	def __init(self,snip,side,shifbox,scope):
+		self.snip=snip
+		self.side=sife
+		self.shiftbox=shiftbox
+		self.gray_snip= cv2.cvtColor(self.snip,cv2.COLOR_BGR2GRAY)
+        def check_scope(self):
+		self.scope_OK=not (self.scope[0] <= 0 or self.scope[1] <= 0)
+                return self.scope_OK
+        def get_countur(self):
+            blurred = cv2.GaussianBlur(self.gray_snip, (5, 5), 0)
+            thresh = cv2.threshold(blurred, 60, 255, cv2.THRESH_BINARY_INV)[1]
+            cnts = cv2.findContours(thresh.copy(), cv2.RETR_EXTERNAL,
+            cv2.CHAIN_APPROX_SIMPLE)
+            cnts = imutils.grab_contours(cnts)
+            image=self.snip.copy()
+            for c in cnts:
+            # compute the center of the contour
+                M = cv2.moments(c)
+                if M["m00"]==0:
+                    continue
+                cX = int(M["m10"] / M["m00"])
+                cY = int(M["m01"] / M["m00"])
+                cv2.drawContours(image, [c], -1, (0, 255, 0), 2)
+            cv2.circle(image, (cX, cY), 7, (255, 255, 255), -1)
+            cv2.putText(image, "center", (cX - 20, cY - 20),
+            cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
+            return image
+        def calc_darkest_point(self):
+            blur_snip = cv2.cvtColor(self.snip, cv2.COLOR_BGR2GRAY)
+            blur_snip = cv2.GaussianBlur(blur_snip, (radius, radius), 0)
+            (min_val, max_val, min_loc, max_loc) = cv2.minMaxLoc(blur_snip)
+            return min_loc
 
-    def calc_shifted_darkest_point(self):
-        min_loc = self.calc_darkest_point()
-        return min_loc[0] + self.shiftbox["minx"], min_loc[1] + self.shiftbox["miny"]
+        def calc_shifted_darkest_point(self):
+            min_loc = self.calc_darkest_point()
+            return min_loc[0] + self.shiftbox["minx"], min_loc[1] + self.shiftbox["miny"]
 
-    def canny_edges(self):
-        blur_snip = cv2.cvtColor(self.snip, cv2.COLOR_BGR2GRAY)
-        blur_snip = cv2.GaussianBlur(blur_snip, (radius, radius), 0)
-        low_threshold = 35
-        high_threshold = low_threshold * 3
-        eye_edges = cv2.Canny(blur_snip, low_threshold, high_threshold)
-        return eye_edges
+        def canny_edges(self):
+            blur_snip = cv2.cvtColor(self.snip, cv2.COLOR_BGR2GRAY)
+            blur_snip = cv2.GaussianBlur(blur_snip, (radius, radius), 0)
+            low_threshold = 35
+            high_threshold = low_threshold * 3
+            eye_edges = cv2.Canny(blur_snip, low_threshold, high_threshold)
+            return eye_edges
 
-    def get_thresh(self):
-        ret, thresh = cv2.threshold(self.gray_snip,0,255,cv2.THRESH_BINARY+cv2.THRESH_OTSU)
-        return thresh
-    def get_blur_thresh(self):
-        blurred = cv2.GaussianBlur(self.gray_snip, (5, 5), 0)
-        ret, thresh = cv2.threshold(blurred,0,255,cv2.THRESH_BINARY+cv2.THRESH_OTSU)
-        return thresh
+        def get_thresh(self):
+            ret, thresh = cv2.threshold(self.gray_snip,0,255,cv2.THRESH_BINARY+cv2.THRESH_OTSU)
+            return thresh
+        def get_blur_thresh(self):
+            blurred = cv2.GaussianBlur(self.gray_snip, (5, 5), 0)
+            ret, thresh = cv2.threshold(blurred,0,255,cv2.THRESH_BINARY+cv2.THRESH_OTSU)
+            return thresh
 
-    def get_segments(self):
-        thresh=self.get_thresh()
-        fg=cv2.erode(thresh,None,iterations=2)
-        bgt=cv2.dilate(thresh,None,iterations=3)
-        ret,bg=cv2.threshold(bgt,1,128,1)
-        marker=cv2.add(fg,bg)
-        marker32 = np.int32(marker)
-        cv2.watershed(self.snip,marker32)
-        m = cv2.convertScaleAbs(marker32)
-        ret,thresh = cv2.threshold(m,0,255,cv2.THRESH_BINARY_INV+cv2.THRESH_OTSU)
-        res = cv2.bitwise_and(self.snip,self.snip,mask = thresh)
+        def get_segments(self):
+            thresh=self.get_thresh()
+            fg=cv2.erode(thresh,None,iterations=2)
+            bgt=cv2.dilate(thresh,None,iterations=3)
+            ret,bg=cv2.threshold(bgt,1,128,1)
+            marker=cv2.add(fg,bg)
+            marker32 = np.int32(marker)
+            cv2.watershed(self.snip,marker32)
+            m = cv2.convertScaleAbs(marker32)
+            ret,thresh = cv2.threshold(m,0,255,cv2.THRESH_BINARY_INV+cv2.THRESH_OTSU)
+            res = cv2.bitwise_and(self.snip,self.snip,mask = thresh)
     #       res[marker ==-1]=[255,0,0]
-        return  res
+            return  res
 #def segment_edges(self):
 #       img=self.canny_edges()
 
