@@ -5,6 +5,7 @@ import imutils
 import dlib
 import cv2
 import time
+import math
 from scipy.spatial import distance
 radius = 5
 WIDTH, HEIGHT = 640, 480
@@ -30,8 +31,8 @@ class EyeSnipper:
 
         marginx = int(0.1 * (maxx - minx))
         marginy = int(0.1 * (maxy - miny))
-        minx -= marginx
-        maxx += marginx
+    #   minx -= marginx
+    #   maxx += marginx
      #  maxy += marginy
      #  miny -= marginy
         shiftbox = {
@@ -63,8 +64,8 @@ class EyeSnipper:
         maxy=eye[1]+eye[3]
         marginx = int(0.2 * (maxx - minx))
         marginy = int(0.2 * (maxy - miny))
-        minx += marginx
-        maxx -= marginx
+   #    minx += marginx
+   #    maxx -= marginx
         maxy -= marginy
         miny += marginy
         shiftbox = {
@@ -132,23 +133,30 @@ class EyeSnip:
         ret, thresh = cv2.threshold(self.gray_snip,0,255,cv2.THRESH_BINARY+cv2.THRESH_OTSU)
         return thresh
     def get_blur_thresh(self):
-        blurred = cv2.GaussianBlur(self.gray_snip, (5, 5), 0)
+   #    blurred = cv2.GaussianBlur(self.gray_snip, (5, 5), 0)
+        blurred = cv2.GaussianBlur(self.snip, (5, 5), 0)
         ret, thresh = cv2.threshold(blurred,0,255,cv2.THRESH_BINARY+cv2.THRESH_OTSU)
         return thresh
 
     def get_segments(self):
-        thresh=self.get_thresh()
-        fg=cv2.erode(thresh,None,iterations=2)
-        bgt=cv2.dilate(thresh,None,iterations=3)
-        ret,bg=cv2.threshold(bgt,1,128,1)
-        marker=cv2.add(fg,bg)
-        marker32 = np.int32(marker)
-        cv2.watershed(self.snip,marker32)
-        m = cv2.convertScaleAbs(marker32)
-        ret,thresh = cv2.threshold(m,0,255,cv2.THRESH_BINARY_INV+cv2.THRESH_OTSU)
-        res = cv2.bitwise_and(self.snip,self.snip,mask = thresh)
-    #       res[marker ==-1]=[255,0,0]
-        return  res
+        im=self.snip.copy()
+        blurred= cv2.GaussianBlur(im, (5, 5), 0)
+
+        params=cv2.SimpleBlobDetector_Params()
+        params.filterByCircularity=True
+        params.minCircularity=0.3
+        params.filterByColor=True
+        params.blobColor=0
+        detector=cv2.SimpleBlobDetector_create(params)
+        keyPoints=detector.detect(blurred)
+        for keypoint in keyPoints:
+            x = int(keypoint.pt[0])
+            y = int(keypoint.pt[1])
+            s = keypoint.size
+            r = int(math.floor(s/2))
+         #  print x, y
+            cv2.circle(im, (x, y), r, (255, 255, 0), 2)
+        return  im
 #def segment_edges(self):
 #       img=self.canny_edges()
 
@@ -173,7 +181,7 @@ def cursor_position(event, x, y, flags, param):
 
 
 def main():
-    capture = cv2.VideoCapture(2)
+    capture = cv2.VideoCapture(0)
 
     capture.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
     capture.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
@@ -192,30 +200,23 @@ def main():
         reye,OK=EyeSnipper.get_from_haar(frame,eye_cascade)
         if not OK:
             cv2.imshow('frame',frame)
+            cv2.waitKey(1)
             continue
         print("Right eye:\n Retina pos in frame: {} \n Retina pos in snip: {}\n Ear:{}".format(
             reye.calc_shifted_darkest_point(), reye.calc_darkest_point(), reye.eye_aspect_ratio))
 
-        cv2.circle(frame,reye.calc_shifted_darkest_point(),radius,(0, 255, 0))
+    #   cv2.circle(frame,reye.calc_shifted_darkest_point(),radius,(0, 255, 0))
 
         # display resized right eye in gray #
-        greye_area = cv2.cvtColor(reye.snip, cv2.COLOR_BGR2GRAY)
-        dim = (greye_area.shape[1] * 3, greye_area.shape[0] * 3)
-        resized_greye_area = cv2.resize(greye_area, dim, interpolation=cv2.INTER_AREA)
-        reye_edges = reye.canny_edges()
-        dim = (reye_edges.shape[1] * 3, reye_edges.shape[0] * 3)
-        resized_reye_edges = cv2.resize(reye_edges, dim, interpolation=cv2.INTER_AREA)
-        cv2.imshow("Edges", resized_reye_edges)
-        cv2.imshow("Frame", frame)
+        cv2.imshow("frame", frame)
+        cv2.waitKey(1)
+        cv2.imshow("reye",reye.snip)
+        cv2.waitKey(1)
         if cv2.waitKey(1) == ord('q'):
             break
-        continue
-        cv2.imshow("Frame", frame)
-
         cv2.imshow("segments",reye.get_segments())
-        cv2.imshow("contour",reye.get_countur())
-        if cv2.waitKey(1) == ord('q'):
-            break
+        cv2.waitKey(1)
+#       cv2.imshow("contour",reye.get_countur())
 
 if __name__ == '__main__':
     main()
