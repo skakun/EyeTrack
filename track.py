@@ -144,11 +144,11 @@ class EyeSnip:
 
         params=cv2.SimpleBlobDetector_Params()
         params.filterByCircularity=True
-        params.minCircularity=0.3
+        params.minCircularity=0.2
         params.filterByColor=True
-        params.blobColor=0
+        params.blobColor= 0
         detector=cv2.SimpleBlobDetector_create(params)
-        keyPoints=detector.detect(blurred)
+        keyPoints=detector.detect(im)
         for keypoint in keyPoints:
             x = int(keypoint.pt[0])
             y = int(keypoint.pt[1])
@@ -181,7 +181,7 @@ def cursor_position(event, x, y, flags, param):
 
 
 def main():
-    capture = cv2.VideoCapture(0)
+    capture = cv2.VideoCapture(2)
 
     capture.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
     capture.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
@@ -204,8 +204,8 @@ def main():
             continue
         print("Right eye:\n Retina pos in frame: {} \n Retina pos in snip: {}\n Ear:{}".format(
             reye.calc_shifted_darkest_point(), reye.calc_darkest_point(), reye.eye_aspect_ratio))
-
-    #   cv2.circle(frame,reye.calc_shifted_darkest_point(),radius,(0, 255, 0))
+        toshow=frame.copy()
+        cv2.circle(toshow, reye.calc_shifted_darkest_point(),radius,(0, 255, 0))
 
         # display resized right eye in gray #
         cv2.imshow("frame", frame)
