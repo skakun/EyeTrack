@@ -5,11 +5,14 @@ import imutils
 import dlib
 import cv2
 import time
+import os
+import sys
 import math
 from scipy.spatial import distance
 radius = 5
 WIDTH, HEIGHT = 640, 480
 eye_cascade = cv2.CascadeClassifier('haarcascade_eye_tree_eyeglasses.xml')
+import argparse
 class EyeSnipper:
     @staticmethod
     def eye_box_hull(frame, shape, side):
@@ -50,6 +53,7 @@ class EyeSnipper:
         snip.check_scope()
         snip.shiftbox_OK=True
         snip.eye_aspect_ratio=1
+        snip.old_scope=frame.shape
         return snip
     @staticmethod
     def get_from_haar(frame,cascade):
@@ -78,6 +82,7 @@ class EyeSnipper:
         scope= shiftbox["maxx"] - shiftbox["minx"], shiftbox["maxy"] - shiftbox["miny"]
         side='r'
         snip=EyeSnip(cropped_frame,side,shiftbox,scope)
+        snip.old_scope=frame.shape
         snip.check_scope()
         snip.shiftbox_OK=True
         snip.eye_aspect_ratio=1
@@ -143,20 +148,28 @@ class EyeSnip:
         blurred= cv2.GaussianBlur(im, (5, 5), 0)
 
         params=cv2.SimpleBlobDetector_Params()
-        params.filterByCircularity=True
-        params.minCircularity=0.2
+#       params.filterByCircularity=True
+#       params.minCircularity=0.2
+        params.filterByConvexity=True
+        params.minConvexity=0.8
         params.filterByColor=True
         params.blobColor= 0
         detector=cv2.SimpleBlobDetector_create(params)
         keyPoints=detector.detect(im)
+        x=0
+        y=0
+        detected=False
         for keypoint in keyPoints:
+            detected=True
             x = int(keypoint.pt[0])
             y = int(keypoint.pt[1])
             s = keypoint.size
             r = int(math.floor(s/2))
          #  print x, y
             cv2.circle(im, (x, y), r, (255, 255, 0), 2)
-        return  im
+            break
+        x,y=trans_point((x,y),self.scope,self.old_scope)
+        return  im,(x,y),detected
 #def segment_edges(self):
 #       img=self.canny_edges()
 
@@ -179,18 +192,41 @@ def cursor_position(event, x, y, flags, param):
         print('x: ' + str(x))
         print('y: ' + str(y))
 
-
 def main():
-    capture = cv2.VideoCapture(2)
+    capture_num=2
+    height=720
+    width=1280
+    parser=argparse.ArgumentParser()
+    parser.add_argument('-f','--show_frame',help='show frame',action='store_true')
+    parser.add_argument('-s',"--show_eye_snip",help='show eye snip',action='store_true')
+    parser.add_argument('-c',"--show_contour",help='show contour',action='store_true')
+    parser.add_argument('-w','--width',help='width of frame' )
+    parser.add_argument('-t','--tallness',help='height of frame')
+    input_group=parser.add_mutually_exclusive_group()
+    input_group.add_argument('-p','--capture',help='number of capture device')
+    input_group.add_argument('-v','--video',help='path to video file')
+    args=parser.parse_args()
+    if args.capture is not None:
+        capture_num=int(args.capture)
+    if args.tallness is not None:
+        height=args.tallness
+    if  args.width is not None:
+        width=args.width
+    if args.video is not None:
+        capture=cv2.VideoCapture(args.video)
+    else:
+        capture = cv2.VideoCapture(capture_num)
+    print(capture_num)
 
-    capture.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
-    capture.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
-
-    # set click coordinates helper #
-#   cv2.namedWindow('Frame')
-#   cv2.setMouseCallback('Frame', cursor_position)
+    capture.set(cv2.CAP_PROP_FRAME_WIDTH, width)
+    capture.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
+    if args.show_frame:
+        # set click coordinates helper #
+        cv2.namedWindow('Frame')
+        cv2.setMouseCallback('Frame', cursor_position)
 
     # begin_t = time.time()
+    center=None
     while True:
         # print("Iteration time: {}".format(time.time()-begin_t))
 
@@ -198,24 +234,33 @@ def main():
         _, frame = capture.read()
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         reye,OK=EyeSnipper.get_from_haar(frame,eye_cascade)
-        if not OK:
+        if reye is None:
+            continue
+        if not OK and args.show_frame:
             cv2.imshow('frame',frame)
             cv2.waitKey(1)
             continue
-        print("Right eye:\n Retina pos in frame: {} \n Retina pos in snip: {}\n Ear:{}".format(
-            reye.calc_shifted_darkest_point(), reye.calc_darkest_point(), reye.eye_aspect_ratio))
+     #  print("Right eye:\n Retina pos in frame: {} \n Retina pos in snip: {}\n Ear:{}".format(
+     #      reye.calc_shifted_darkest_point(), reye.calc_darkest_point(), reye.eye_aspect_ratio))
         toshow=frame.copy()
         cv2.circle(toshow, reye.calc_shifted_darkest_point(),radius,(0, 255, 0))
 
         # display resized right eye in gray #
-        cv2.imshow("frame", frame)
-        cv2.waitKey(1)
-        cv2.imshow("reye",reye.snip)
-        cv2.waitKey(1)
+        if args.show_frame :
+            cv2.imshow("frame", frame)
+            cv2.waitKey(1)
+        if args.show_eye_snip:
+            cv2.imshow("reye",reye.snip)
+            cv2.waitKey(1)
         if cv2.waitKey(1) == ord('q'):
             break
-        cv2.imshow("segments",reye.get_segments())
-        cv2.waitKey(1)
+        if args.show_contour:
+            segframe,ncenter,detected=reye.get_segments()
+            if detected:
+                center=ncenter
+            print("Right retina center :{}\n".format(center))
+            cv2.imshow("segments",segframe)
+            cv2.waitKey(1)
 #       cv2.imshow("contour",reye.get_countur())
 
 if __name__ == '__main__':
