@@ -169,8 +169,8 @@ def main():
     capture.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
     capture.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
 
-    for i in range(120):
-        capture.read()
+    # for i in range(120):
+    #     capture.read()
 
     i = 0
     pupil_positions = []
@@ -179,7 +179,7 @@ def main():
         # print("Iteration time: {}".format(time.time()-begin_t))
 
         # find face and eyes #
-        capture.read()
+        capture.read()  # every second frame
         ret, frame = capture.read()
         if not ret:
             break
