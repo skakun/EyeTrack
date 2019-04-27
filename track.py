@@ -6,6 +6,7 @@ import dlib
 import cv2
 import time
 import math
+from statistics import mean
 from scipy.spatial import distance
 
 radius = 5
@@ -42,7 +43,7 @@ class EyeSnipper:
         cropped_frame = frame[miny:maxy, minx:maxx]
         scope = shiftbox["maxx"] - shiftbox["minx"], shiftbox["maxy"] - shiftbox["miny"]
         side = 'r'
-        snip = EyeSnip(cropped_frame, side, shiftbox, scope)
+        snip = EyeSnip(cropped_frame, [minx, miny], side, shiftbox, scope)
         snip.check_scope()
         snip.shiftbox_OK = True
         snip.eye_aspect_ratio = 1
@@ -50,12 +51,14 @@ class EyeSnipper:
 
 
 class EyeSnip:
-    def __init__(self, snip, side, shiftbox, scope):
+    def __init__(self, snip, coords, side, shiftbox, scope):
         self.snip = snip
+        self.coords = coords
         self.side = side
         self.scope = scope
         self.shiftbox = shiftbox
         self.gray_snip = cv2.cvtColor(self.snip, cv2.COLOR_BGR2GRAY)
+        self.pupil_position = None
         self.segmented = self.get_segments()
 
     def check_scope(self):
@@ -67,15 +70,15 @@ class EyeSnip:
         gray = cv2.cvtColor(self.snip, cv2.COLOR_BGR2GRAY)
         blurred = cv2.GaussianBlur(gray, (3, 3), 0)  # można popróbować z różnymi blurami, ale prędzej mniejszy, niż większy wg mnie
 
-        #im = cv2.equalizeHist(blurred)  # bardziej uniwersalny, bo rozciąga zakres szarości do stałych granic,
+        im = cv2.equalizeHist(blurred)  # bardziej uniwersalny, bo rozciąga zakres szarości do stałych granic,
                                          # ale za to trudniej wyróżnić źrenicę na tle tęczówki (dla ciemnych oczu)
 
         #ret, im = cv2.threshold(blurred, 5, 255, cv2.THRESH_BINARY)  # chamskie thresholdowanie raczej nie działa, ale można coś pokombonować
-        im = blurred
+        #im = blurred
 
         params = cv2.SimpleBlobDetector_Params()
         params.minThreshold = 0
-        params.maxThreshold = 45  # albo 15-30 z użyciem equalizeHist albo trochę więcej bez niego (bez niego można lepiej
+        params.maxThreshold = 30  # albo 15-30 z użyciem equalizeHist albo trochę więcej bez niego (bez niego można lepiej
                                   # wyizolować źrenicę od tęczówki, ale trzeba uważać na przypadki, gdy w jakimś
                                   # ultraświetle źrenica byłaby jaśniejsza od tych powiedzmy 30 ustawionych jako maxThreshold
 
@@ -100,13 +103,18 @@ class EyeSnip:
             n = 0
         else:
             n += 1
+
+        maxsize = 0
         for keypoint in keyPoints:
             x = int(keypoint.pt[0])
             y = int(keypoint.pt[1])
             s = keypoint.size
             r = int(math.floor(s / 2))
-            #  print x, y
             cv2.circle(im, (x, y), r, (255, 255, 0), 2)
+            if s > maxsize:
+                maxsize = s
+                self.pupil_position = [self.coords[0]+x, self.coords[1]+y]
+                print('keypoint coordinates: ' + str(self.coords[0]+x), str(self.coords[1]+y))
         return im
 
 
@@ -126,12 +134,47 @@ def color_at_cursor_position(event, x, y, flags, param):
         print(param[y, x])
 
 
+def calibrate_pupil(pupil_positions):
+    max_pos = None
+    pos_counts = [[0, []] for _ in range(64)]
+    for pos in pupil_positions:
+        x = pos[0]
+        n = x // 20
+        pos_counts[n][1].append(pos)
+        pos_counts[n][0] += 1
+        if max_pos is None or pos_counts[n][0] > max_pos[0]:
+            max_pos = pos_counts[n]
+
+    pupil_positions = max_pos[1]
+    max_pos = None
+    pos_counts = [[0, []] for _ in range(36)]
+    for pos in pupil_positions:
+        y = pos[1]
+        n = y // 20
+        pos_counts[n][1].append(pos)
+        pos_counts[n][0] += 1
+        if max_pos is None or pos_counts[n][0] > max_pos[0]:
+            max_pos = pos_counts[n]
+
+    pupil_centered = []
+    if max_pos is not None:
+        pupil_centered.append(mean([elem[0] for elem in max_pos[1]]))
+        pupil_centered.append(mean([elem[1] for elem in max_pos[1]]))
+    return pupil_centered
+
+
 def main():
     # capture = cv2.VideoCapture(0)
     capture = cv2.VideoCapture('77.mp4')
     capture.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
     capture.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
 
+    for i in range(120):
+        capture.read()
+
+    i = 0
+    pupil_positions = []
+    pupil_centered = []
     while capture.isOpened():
         # print("Iteration time: {}".format(time.time()-begin_t))
 
@@ -141,8 +184,51 @@ def main():
         if not ret:
             break
         reye, OK = EyeSnipper.get_from_haar(frame, eye_cascade)
+
+        move_left, move_right, move_up, move_down = False, False, False, False
+        print('i = ' + str(i))
+        if i < 25:
+            if reye is not None and reye.pupil_position is not None:
+                pupil_positions.append(reye.pupil_position)
+                shiftbox_size = [reye.shiftbox['maxx'] - reye.shiftbox['minx'],
+                                 reye.shiftbox['maxy'] - reye.shiftbox['miny']]
+                print('eye size: ' + str(shiftbox_size))
+
+        if i == 25:
+            print(pupil_positions)
+            pupil_centered = calibrate_pupil(pupil_positions)
+            print(pupil_centered)
+
+        if i >= 25:
+            if reye is not None and reye.pupil_position is not None:
+                shiftbox_size = [reye.shiftbox['maxx'] - reye.shiftbox['minx'],
+                                 reye.shiftbox['maxy'] - reye.shiftbox['miny']]
+                shiftbox_center = [(reye.shiftbox['minx'] + reye.shiftbox['maxx']) // 2,
+                                   (reye.shiftbox['miny'] + reye.shiftbox['maxy']) // 2]
+                print('eye size: ' + str(shiftbox_size))
+                x = reye.pupil_position[0]
+                y = reye.pupil_position[1]
+                x_movement = x - pupil_centered[0]
+                y_movement = y - pupil_centered[1]
+                if abs(x_movement) < shiftbox_size[0] // 2 and abs(y_movement) < shiftbox_size[1] // 2:
+                    if abs(x_movement) > shiftbox_size[0] // 8:
+                        if x - pupil_centered[0] < 0:
+                            move_left = True
+                        else:
+                            move_right = True
+                    if abs(y_movement) > shiftbox_size[1] // 8:
+                        if y_movement < 0:
+                            move_up = True
+                        else:
+                            move_down = True
+        i += 1
+        print(move_left, move_right, move_up, move_down)
+
+        cv2.namedWindow("frame", cv2.WINDOW_AUTOSIZE)
+        cv2.setMouseCallback("frame", color_at_cursor_position, param=frame)
         cv2.imshow('frame', frame)
         if cv2.waitKey(1) & 0xFF == ord('q'):
+            print(pupil_positions)
             break
         if not OK:
             continue
@@ -150,8 +236,8 @@ def main():
         # display resized right eye in gray #
         cv2.imshow("reye", reye.snip)
 
-        cv2.namedWindow("segments", cv2.WINDOW_AUTOSIZE)
-        cv2.setMouseCallback("segments", color_at_cursor_position, param=reye.segmented)
+        # cv2.namedWindow("segments", cv2.WINDOW_AUTOSIZE)
+        # cv2.setMouseCallback("segments", color_at_cursor_position, param=reye.segmented)
         cv2.imshow("segments", reye.segmented)
 
 
