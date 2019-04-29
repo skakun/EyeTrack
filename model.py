@@ -176,10 +176,10 @@ class EyeSnip:
 #       img=self.canny_edges()
 
 class Retina_detector :
-    def __init__(self,capture,height,width):
+    def __init__(self,capture):
         self.capture=cv2.VideoCapture(capture)
-        self.height=height
-        self.width=width
+      # self.height=height
+      # self.width=width
         self.radius=5
         self.YELLOW_COLOR = (0, 255, 255)
         self.show_frame=False
