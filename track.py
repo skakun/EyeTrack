@@ -1,8 +1,13 @@
 import argparse
 import cv2
 import model
-import server
 import sys
+import pickle
+import json
+from flask  import Flask 
+centrum=None
+
+url='/track/'
 parser=argparse.ArgumentParser()
 parser.add_argument('-c','--capture',help='name of videofile to be analysied or numer of capture device',default=2)
 parser.add_argument('-f','--showframe',help='show full frame',action='store_true')
@@ -15,5 +20,8 @@ detec.set_cascade()
 detec.set_predictor()
 while True:
     centrum=detec.detect()
-    server.set_point(centrum)
-
+   #jc={}
+   #jc['x']=centrum[0]
+   #jc['y']=centrum[1]
+   #fp=open('cexch.pkl','w')
+   #pickle.dump(jc,fp)
