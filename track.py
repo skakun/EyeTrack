@@ -5,7 +5,7 @@ import sys
 import pickle
 import json
 from flask  import Flask 
-centrum=None
+centrum=(None,None)
 
 url='/track/'
 parser=argparse.ArgumentParser()
@@ -19,9 +19,7 @@ detec.set_display_opt(args.showframe,args.showsnip,False)
 detec.set_cascade()
 detec.set_predictor()
 while True:
-    centrum=detec.detect()
-   #jc={}
-   #jc['x']=centrum[0]
-   #jc['y']=centrum[1]
-   #fp=open('cexch.pkl','w')
-   #pickle.dump(jc,fp)
+    jc=detec.detect()
+    fp=open('cexch.pkl','w')
+    json.dump(jc,fp)
+    fp.close()

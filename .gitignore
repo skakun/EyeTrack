@@ -5,3 +5,6 @@ vscode
 .vscode/*
 Video
 *.py.*
+config.py
+cexch.pkl
+__pycache__

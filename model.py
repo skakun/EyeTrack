@@ -1,5 +1,6 @@
 from imutils import face_utils
 import numpy as np
+import re
 import pyautogui as pag
 import imutils
 import dlib
@@ -8,6 +9,7 @@ import time
 import os
 import sys
 import math
+import copy
 from scipy.spatial import distance
 radius = 5
 WIDTH, HEIGHT = 640, 480
@@ -180,12 +182,16 @@ class Retina_detector :
         self.capture=cv2.VideoCapture(capture)
       # self.height=height
       # self.width=width
+
         self.radius=5
         self.YELLOW_COLOR = (0, 255, 255)
         self.show_frame=False
         self.show_contour=False
         self.show_snip=False
         self.center=None
+        self.detected=False
+        self.reye=None
+        self.leye=None
     def set_display_opt(self,frame,contour,snip):
         self.show_frame=frame
         self.show_contour=contour
@@ -199,31 +205,48 @@ class Retina_detector :
 
         (self.lstart, self.lend) = face_utils.FACIAL_LANDMARKS_IDXS["left_eye"]
         (self.rstart, self.rend) = face_utils.FACIAL_LANDMARKS_IDXS["right_eye"]
+    def get_state(self):
+        state={}
+        state["detected"]=self.detected
+        if not self.detected:
+            state["center_x"]=None
+            state["center_y"]=None
+            state["frame_size_x"]=None
+            state["frame_size_y"]=None
+        else:
+            state["center_x"]=self.center[0]
+            state["center_y"]=self.center[1]
+            state["frame_size_x"]=self.frame.shape[0]
+            state["frame_size_y"]=self.frame.shape[1]
+        sbox={"eye_snip_"+key :int(val) for key,val in self.reye.shiftbox.items()}
+        return  {**state,**sbox} #wtf, python?
+
     def detect(self):
-        _,frame=self.capture.read()
-        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        reye,OK=EyeSnipper.get_from_haar(frame,eye_cascade)
-        if reye is None:
-            return
-        if not OK and  self.show_frame:
-            cv2.imshow('frame',frame)
+        _,self.frame=self.capture.read()
+        gray = cv2.cvtColor(self.frame, cv2.COLOR_BGR2GRAY)
+        self.reye,self.detected=EyeSnipper.get_from_haar(self.frame,eye_cascade)
+        if self.reye is None:
+            return self.get_state()
+        if not self.detected and  self.show_frame:
+            cv2.imshow('frame',self.frame)
             cv2.waitKey(1)
-            return
+            return self.get_state()
      #  print("Right eye:\n Retina pos in frame: {} \n Retina pos in snip: {}\n Ear:{}".format(
      #      reye.calc_shifted_darkest_point(), reye.calc_darkest_point(), reye.eye_aspect_ratio))
-        toshow=frame.copy()
-        cv2.circle(toshow, reye.calc_shifted_darkest_point(),radius,(0, 255, 0))
+        toshow=self.frame.copy()
+        cv2.circle(toshow, self.reye.calc_shifted_darkest_point(),radius,(0, 255, 0))
         if self.show_frame :
-            cv2.imshow("frame", frame)
+            cv2.imshow("frame", self.frame)
             cv2.waitKey(1)
         if  self.show_snip:
             cv2.imshow("reye",reye.snip)
             cv2.waitKey(1)
-        if  self.show_contour:
-            segframe,ncenter,detected=reye.get_segments()
-            if detected:
-                self.center=ncenter
-            print("Right retina center :{}\n".format(self.center))
+    #   if  self.show_contour:
+        segframe,ncenter,detected=self.reye.get_segments()
+        if self.detected:
+            self.center=ncenter
+        print("Right retina center :{}\n".format(self.center))
+        if self.show_contour:
             cv2.imshow("segments",segframe)
             cv2.waitKey(1)
-            return  self.center
+        return  self.get_state()
