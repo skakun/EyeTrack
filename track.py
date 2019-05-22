@@ -7,6 +7,7 @@ import cv2
 import time
 from scipy.spatial import distance
 import matplotlib.pyplot as plt
+from statistics import mean
 
 radius = 5
 WIDTH, HEIGHT = 640, 480
@@ -75,6 +76,89 @@ class EyeSnip:
         return frame[miny:maxy, minx:maxx], shiftbox, eye_aspect_ratio
 
 
+def get_segments(self):
+    # im = self.snip.copy()
+    gray = cv2.cvtColor(self.snip, cv2.COLOR_BGR2GRAY)
+    blurred = cv2.GaussianBlur(gray, (3, 3),
+                               0)  # można popróbować z różnymi blurami, ale prędzej mniejszy, niż większy wg mnie
+
+    im = cv2.equalizeHist(blurred)  # bardziej uniwersalny, bo rozciąga zakres szarości do stałych granic,
+    # ale za to trudniej wyróżnić źrenicę na tle tęczówki (dla ciemnych oczu)
+
+    # ret, im = cv2.threshold(blurred, 5, 255, cv2.THRESH_BINARY)  # chamskie thresholdowanie raczej nie działa, ale można coś pokombonować
+    # im = blurred
+
+    params = cv2.SimpleBlobDetector_Params()
+    params.minThreshold = 0
+    params.maxThreshold = 30  # albo 15-30 z użyciem equalizeHist albo trochę więcej bez niego (bez niego można lepiej
+    # wyizolować źrenicę od tęczówki, ale trzeba uważać na przypadki, gdy w jakimś
+    # ultraświetle źrenica byłaby jaśniejsza od tych powiedzmy 30 ustawionych jako maxThreshold
+
+    params.thresholdStep = 5  # thresholduje w górę (bierze wszystko od danego thresholda do 255) od 'min' do 'max' co 'step';
+    # blob musi się znajdować przynajmniej w 2 z tych obrazów binarnych (po thresholdzie), aby był brany pod uwagę
+
+    # params.minRepeatability  # ilość obrazów binarnych po segmentacji, w jakich musi się znajdować blob, żeby był brany pod uwagę; nie ruszałem
+
+    # params.minInertiaRatio  # płaskość czy coś, to jest defaultowo ustawione na min 0.1 (chyba stosunek wysokości
+    # do szerokości albo coś takiego); nie ruszałem
+
+    # params.filterByCircularity = True
+    # params.minCircularity = 0.3
+    params.filterByConvexity = True
+    params.minConvexity = 0.7  # wypukłość; musi być nie za duża, ale największa możliwa
+    params.filterByArea = True
+    params.minArea = 700  # raczej można jeszcze spokojnie zwiększyć
+    detector = cv2.SimpleBlobDetector_create(params)
+    keyPoints = detector.detect(im)
+    global n
+    if keyPoints:
+        n = 0
+    else:
+        n += 1
+
+    maxsize = 0
+    for keypoint in keyPoints:
+        x = int(keypoint.pt[0])
+        y = int(keypoint.pt[1])
+        s = keypoint.size
+        r = int(math.floor(s / 2))
+        cv2.circle(im, (x, y), r, (255, 255, 0), 2)
+        if s > maxsize:
+            maxsize = s
+            self.pupil_position = [self.coords[0] + x, self.coords[1] + y]
+            print('keypoint coordinates: ' + str(self.coords[0] + x), str(self.coords[1] + y))
+    return im
+
+
+def calibrate_pupil(pupil_positions):
+    max_pos = None
+    pos_counts = [[0, []] for _ in range(64)]
+    for pos in pupil_positions:
+        x = pos[0]
+        n = x // 20
+        pos_counts[n][1].append(pos)
+        pos_counts[n][0] += 1
+        if max_pos is None or pos_counts[n][0] > max_pos[0]:
+            max_pos = pos_counts[n]
+
+    pupil_positions = max_pos[1]
+    max_pos = None
+    pos_counts = [[0, []] for _ in range(36)]
+    for pos in pupil_positions:
+        y = pos[1]
+        n = y // 20
+        pos_counts[n][1].append(pos)
+        pos_counts[n][0] += 1
+        if max_pos is None or pos_counts[n][0] > max_pos[0]:
+            max_pos = pos_counts[n]
+
+    pupil_centered = []
+    if max_pos is not None:
+        pupil_centered.append(mean([elem[0] for elem in max_pos[1]]))
+        pupil_centered.append(mean([elem[1] for elem in max_pos[1]]))
+    return pupil_centered
+
+
 shape_predictor = "shape_predictor_68_face_landmarks.dat"
 detector = dlib.get_frontal_face_detector()
 predictor = dlib.shape_predictor(shape_predictor)
@@ -95,7 +179,10 @@ def cursor_position(event, x, y, flags, param):
 
 
 def main():
-    capture = cv2.VideoCapture(0)
+    # capture = cv2.VideoCapture(0)
+    capture = cv2.VideoCapture('LiveRecord/4.mp4')
+    capture.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
+    capture.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
 
     # set click coordinates helper #
     cv2.namedWindow('Frame')
@@ -104,16 +191,17 @@ def main():
     rear_list = []
     lear_list = []
     # begin_t = time.time()
-    while True:
+    while capture.isOpened():
         # print("Iteration time: {}".format(time.time()-begin_t))
 
         # find face and eyes #
+        capture.read()
         _, frame = capture.read()
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         rects = detector(gray, 0)
         if len(rects) <= 0:
             cv2.imshow("Frame", frame)
-            if cv2.waitKey(1) == ord('q'):
+            if cv2.waitKey(1) & 0xFF == ord('q'):
                 break
             continue
 
