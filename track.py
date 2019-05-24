@@ -5,46 +5,17 @@ import imutils
 import dlib
 import cv2
 import time
-from scipy.spatial import distance
-import matplotlib.pyplot as plt
+import math
 from statistics import mean
 
 radius = 5
 WIDTH, HEIGHT = 640, 480
+MOVE_STEP = 100
 
-
-class EyeSnip:
-    EYE_CLOSED_EAR_THRESHOLD = 0.12
-
-    def __init__(self, frame, shape, side):
-        self.snip, self.shiftbox, self.eye_aspect_ratio = EyeSnip.eye_box(frame, shape, side)
-        self.scope = self.shiftbox["maxx"] - self.shiftbox["minx"], self.shiftbox["maxy"] - self.shiftbox["miny"]
-        self.scope_OK = not (self.scope[0] <= 0 or self.scope[1] <= 0)
-        # self.shiftbox_OK = not (self.shiftbox["minx"] < 0 or self.shiftbox["maxx"] > WIDTH or
-        #                         self.shiftbox["miny"] < 0 or self.shiftbox["maxy"] > HEIGHT)
-        self.shiftbox_OK = True
-        self.eye_closed = self.eye_aspect_ratio < self.EYE_CLOSED_EAR_THRESHOLD
-
-    def calc_darkest_point(self):
-        blur_snip = cv2.cvtColor(self.snip, cv2.COLOR_BGR2GRAY)
-        blur_snip = cv2.GaussianBlur(blur_snip, (radius, radius), 0)
-        (min_val, max_val, min_loc, max_loc) = cv2.minMaxLoc(blur_snip)
-        return min_loc
-
-    def calc_shifted_darkest_point(self):
-        min_loc = self.calc_darkest_point()
-        return min_loc[0] + self.shiftbox["minx"], min_loc[1] + self.shiftbox["miny"]
-
-    def canny_edges(self):
-        blur_snip = cv2.cvtColor(self.snip, cv2.COLOR_BGR2GRAY)
-        blur_snip = cv2.GaussianBlur(blur_snip, (radius, radius), 0)
-        low_threshold = 35
-        high_threshold = low_threshold * 3
-        eye_edges = cv2.Canny(blur_snip, low_threshold, high_threshold)
-        return eye_edges
-
+from scipy.spatial import distance
+class EyeSnipper:
     @staticmethod
-    def eye_box(frame, shape, side):
+    def eye_box_hull(frame, shape, side):
         minx, maxx, miny, maxy, eye_aspect_ratio = 0, 0, 0, 0, 0
         if side == 'r':
             miny = shape[37][1] if shape[37][1] < shape[38][1] else shape[38][1]
@@ -61,12 +32,12 @@ class EyeSnip:
             eye_aspect_ratio = (distance.euclidean(shape[43], shape[47]) + distance.euclidean(shape[44], shape[46])) / (
                                 2 * distance.euclidean(shape[42], shape[45]))
 
-        # marginx = int(0.2 * (maxx - minx))
-        # marginy = int(0.3 * (maxy - miny))
+        marginx = int(0.1 * (maxx - minx))
+        marginy = int(0.1 * (maxy - miny))
         # minx -= marginx
         # maxx += marginx
-        # maxy += marginy
-        # miny -= marginy
+        maxy += marginy
+        miny -= marginy
         shiftbox = {
             "minx": minx,
             "maxx": maxx,
@@ -75,59 +46,155 @@ class EyeSnip:
         }
         return frame[miny:maxy, minx:maxx], shiftbox, eye_aspect_ratio
 
+    @staticmethod
+    def get_from_hull(frame,shape,side):
+        cropped_frame,shiftbox,ear=EyeSnipper.eye_box_hull(frame,shape,side)
+        print(shiftbox)
+        scope= shiftbox["maxx"] - shiftbox["minx"], shiftbox["maxy"] - shiftbox["miny"]
+        snip=EyeSnip(cropped_frame,side,shiftbox,scope)
+        snip.check_scope()
+        snip.shiftbox_OK=True
+        snip.eye_aspect_ratio=ear
+        return snip
 
-def get_segments(self):
-    # im = self.snip.copy()
-    gray = cv2.cvtColor(self.snip, cv2.COLOR_BGR2GRAY)
-    blurred = cv2.GaussianBlur(gray, (3, 3),
-                               0)  # można popróbować z różnymi blurami, ale prędzej mniejszy, niż większy wg mnie
 
-    im = cv2.equalizeHist(blurred)  # bardziej uniwersalny, bo rozciąga zakres szarości do stałych granic,
-    # ale za to trudniej wyróżnić źrenicę na tle tęczówki (dla ciemnych oczu)
+class EyeSnip:
+    # def __init__(self, frame, shape, side):
+    #     self.snip, self.shiftbox, self.eye_aspect_ratio = EyeSnip.eye_box(frame, shape, side)
+    #     self.scope = self.shiftbox["maxx"] - self.shiftbox["minx"], self.shiftbox["maxy"] - self.shiftbox["miny"]
+    #     self.scope_OK = not (self.scope[0] <= 0 or self.scope[1] <= 0)
+    #     self.shiftbox_OK = not (self.shiftbox["minx"] < 0 or self.shiftbox["maxx"] > WIDTH or
+    #                             self.shiftbox["miny"] < 0 or self.shiftbox["maxy"] > HEIGHT)
+    #     self.shiftbox_OK=True
+    #     self.gray_snip= cv2.cvtColor(self.snip,cv2.COLOR_BGR2GRAY)
+    #
+    # def get_countur(self):
+    #     blurred = cv2.GaussianBlur(self.gray_snip, (5, 5), 0)
+    #     thresh = cv2.threshold(blurred, 60, 255, cv2.THRESH_BINARY_INV)[1]
+    #     cnts = cv2.findContours(thresh.copy(), cv2.RETR_EXTERNAL,
+    #     cv2.CHAIN_APPROX_SIMPLE)
+    #     cnts = imutils.grab_contours(cnts)
+    #     image=self.snip.copy()
+    #     for c in cnts:
+    #     # compute the center of the contour
+    #         M = cv2.moments(c)
+    #         if M["m00"]==0:
+    #             continue
+    #         cX = int(M["m10"] / M["m00"])
+    #         cY = int(M["m01"] / M["m00"])
+    #         cv2.drawContours(image, [c], -1, (0, 255, 0), 2)
+    #     # cv2.circle(image, (cX, cY), 7, (255, 255, 255), -1)
+    #     # cv2.putText(image, "center", (cX - 20, cY - 20),
+    #     # cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
+    #     return image
+    #
+    # def calc_darkest_point(self):
+    #     blur_snip = cv2.cvtColor(self.snip, cv2.COLOR_BGR2GRAY)
+    #     blur_snip = cv2.GaussianBlur(blur_snip, (radius, radius), 0)
+    #     (min_val, max_val, min_loc, max_loc) = cv2.minMaxLoc(blur_snip)
+    #     return min_loc
+    #
+    # def calc_shifted_darkest_point(self):
+    #     min_loc = self.calc_darkest_point()
+    #     return min_loc[0] + self.shiftbox["minx"], min_loc[1] + self.shiftbox["miny"]
+    #
+    # def canny_edges(self):
+    #     blur_snip = cv2.cvtColor(self.snip, cv2.COLOR_BGR2GRAY)
+    #     blur_snip = cv2.GaussianBlur(blur_snip, (radius, radius), 0)
+    #     low_threshold = 35
+    #     high_threshold = low_threshold * 3
+    #     eye_edges = cv2.Canny(blur_snip, low_threshold, high_threshold)
+    #     return eye_edges
+    #
+    # def get_thresh(self):
+    #     ret, thresh = cv2.threshold(self.gray_snip,0,255,cv2.THRESH_BINARY+cv2.THRESH_OTSU)
+    #     return thresh
+    # def get_blur_thresh(self):
+    #     blurred = cv2.GaussianBlur(self.gray_snip, (5, 5), 0)
+    #     ret, thresh = cv2.threshold(blurred,0,255,cv2.THRESH_BINARY+cv2.THRESH_OTSU)
+    #     return thresh
+    #
+    # def get_segments(self):
+    #     thresh=self.get_thresh()
+    #     fg=cv2.erode(thresh,None,iterations=2)
+    #     bgt=cv2.dilate(thresh,None,iterations=3)
+    #     ret,bg=cv2.threshold(bgt,1,128,1)
+    #     marker=cv2.add(fg,bg)
+    #     marker32 = np.int32(marker)
+    #     cv2.watershed(self.snip,marker32)
+    #     m = cv2.convertScaleAbs(marker32)
+    #     ret,thresh = cv2.threshold(m,0,255,cv2.THRESH_BINARY_INV+cv2.THRESH_OTSU)
+    #     res = cv2.bitwise_and(self.snip,self.snip,mask = thresh)
+    # #       res[marker ==-1]=[255,0,0]
+    #     return res
 
-    # ret, im = cv2.threshold(blurred, 5, 255, cv2.THRESH_BINARY)  # chamskie thresholdowanie raczej nie działa, ale można coś pokombonować
-    # im = blurred
+    def __init__(self,snip,side,shiftbox,scope):
+        self.snip=snip
+        self.side=side
+        self.scope=scope
+        self.shiftbox=shiftbox
+        self.gray_snip= cv2.cvtColor(self.snip,cv2.COLOR_BGR2GRAY)
+        self.pupil_position = None
+        self.scope_OK = None
 
-    params = cv2.SimpleBlobDetector_Params()
-    params.minThreshold = 0
-    params.maxThreshold = 30  # albo 15-30 z użyciem equalizeHist albo trochę więcej bez niego (bez niego można lepiej
-    # wyizolować źrenicę od tęczówki, ale trzeba uważać na przypadki, gdy w jakimś
-    # ultraświetle źrenica byłaby jaśniejsza od tych powiedzmy 30 ustawionych jako maxThreshold
+    def check_scope(self):
+        self.scope_OK = not (self.scope[0] <= 0 or self.scope[1] <= 0)
+        return self.scope_OK
 
-    params.thresholdStep = 5  # thresholduje w górę (bierze wszystko od danego thresholda do 255) od 'min' do 'max' co 'step';
-    # blob musi się znajdować przynajmniej w 2 z tych obrazów binarnych (po thresholdzie), aby był brany pod uwagę
+    def get_segments(self):
+        # im = self.snip.copy()
+        gray = cv2.cvtColor(self.snip, cv2.COLOR_BGR2GRAY)
 
-    # params.minRepeatability  # ilość obrazów binarnych po segmentacji, w jakich musi się znajdować blob, żeby był brany pod uwagę; nie ruszałem
+        blurred = cv2.GaussianBlur(gray, (3, 3),
+                                   0)  # można popróbować z różnymi blurami, ale prędzej mniejszy, niż większy wg mnie
 
-    # params.minInertiaRatio  # płaskość czy coś, to jest defaultowo ustawione na min 0.1 (chyba stosunek wysokości
-    # do szerokości albo coś takiego); nie ruszałem
+        im = cv2.equalizeHist(blurred)  # bardziej uniwersalny, bo rozciąga zakres szarości do stałych granic,
+        # ale za to trudniej wyróżnić źrenicę na tle tęczówki (dla ciemnych oczu)
 
-    # params.filterByCircularity = True
-    # params.minCircularity = 0.3
-    params.filterByConvexity = True
-    params.minConvexity = 0.7  # wypukłość; musi być nie za duża, ale największa możliwa
-    params.filterByArea = True
-    params.minArea = 700  # raczej można jeszcze spokojnie zwiększyć
-    detector = cv2.SimpleBlobDetector_create(params)
-    keyPoints = detector.detect(im)
-    global n
-    if keyPoints:
-        n = 0
-    else:
-        n += 1
+        # ret, im = cv2.threshold(blurred, 5, 255, cv2.THRESH_BINARY)  # chamskie thresholdowanie raczej nie działa, ale można coś pokombonować
+        # im = blurred
 
-    maxsize = 0
-    for keypoint in keyPoints:
-        x = int(keypoint.pt[0])
-        y = int(keypoint.pt[1])
-        s = keypoint.size
-        r = int(math.floor(s / 2))
-        cv2.circle(im, (x, y), r, (255, 255, 0), 2)
-        if s > maxsize:
-            maxsize = s
-            self.pupil_position = [self.coords[0] + x, self.coords[1] + y]
-            print('keypoint coordinates: ' + str(self.coords[0] + x), str(self.coords[1] + y))
-    return im
+        params = cv2.SimpleBlobDetector_Params()
+        params.minThreshold = 0
+        params.maxThreshold = 30  # albo 15-30 z użyciem equalizeHist albo trochę więcej bez niego (bez niego można lepiej
+        # wyizolować źrenicę od tęczówki, ale trzeba uważać na przypadki, gdy w jakimś
+        # ultraświetle źrenica byłaby jaśniejsza od tych powiedzmy 30 ustawionych jako maxThreshold
+
+        params.thresholdStep = 5  # thresholduje w górę (bierze wszystko od danego thresholda do 255) od 'min' do 'max' co 'step';
+        # blob musi się znajdować przynajmniej w 2 z tych obrazów binarnych (po thresholdzie), aby był brany pod uwagę
+
+        # params.minRepeatability  # ilość obrazów binarnych po segmentacji, w jakich musi się znajdować blob, żeby był brany pod uwagę; nie ruszałem
+
+        # params.minInertiaRatio  # płaskość czy coś, to jest defaultowo ustawione na min 0.1 (chyba stosunek wysokości
+        # do szerokości albo coś takiego); nie ruszałem
+
+        # params.filterByCircularity = True
+        # params.minCircularity = 0.3
+        params.filterByConvexity = True
+        params.minConvexity = 0.7  # wypukłość; musi być nie za duża, ale największa możliwa
+        params.filterByArea = True
+        params.minArea = 300  # raczej można jeszcze spokojnie zwiększyć
+        detector = cv2.SimpleBlobDetector_create(params)
+        keyPoints = detector.detect(im)
+        # global n
+        # if keyPoints:
+        #     n = 0
+        # else:
+        #     n += 1
+
+        maxsize = 0
+        for keypoint in keyPoints:
+            x = int(keypoint.pt[0])
+            y = int(keypoint.pt[1])
+            print(x, y)
+            s = keypoint.size
+            r = int(math.floor(s / 2))
+            cv2.circle(im, (x, y), r, (255, 255, 0), 2)
+            if s > maxsize:
+                maxsize = s
+                self.pupil_position = [self.shiftbox['minx'] + x, self.shiftbox['miny'] + y]
+                print('keypoint coordinates: ' + str(self.shiftbox['minx'] + x), str(self.shiftbox['miny'] + y))
+        return im
 
 
 def calibrate_pupil(pupil_positions):
@@ -180,28 +247,28 @@ def cursor_position(event, x, y, flags, param):
 
 def main():
     # capture = cv2.VideoCapture(0)
-    capture = cv2.VideoCapture('LiveRecord/4.mp4')
-    capture.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
-    capture.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
+    capture = cv2.VideoCapture('LiveRecord/5.mp4')
+    # capture.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
+    # capture.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
 
     # set click coordinates helper #
     cv2.namedWindow('Frame')
     cv2.setMouseCallback('Frame', cursor_position)
 
-    rear_list = []
-    lear_list = []
-    # begin_t = time.time()
-    while capture.isOpened():
-        # print("Iteration time: {}".format(time.time()-begin_t))
-
+    i = 0
+    pupil_positions = []
+    pupil_centered = []
+    cursorPos = (600, 588)
+    while True:
         # find face and eyes #
+        capture.read()
         capture.read()
         _, frame = capture.read()
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         rects = detector(gray, 0)
         if len(rects) <= 0:
             cv2.imshow("Frame", frame)
-            if cv2.waitKey(1) & 0xFF == ord('q'):
+            if cv2.waitKey(1) == ord('q'):
                 break
             continue
 
@@ -212,26 +279,16 @@ def main():
         right_eye = shape[rstart:rend]
         left_eye_hull = cv2.convexHull(left_eye)
         right_eye_hull = cv2.convexHull(right_eye)
-        reye = EyeSnip(frame, shape, 'r')
-        leye = EyeSnip(frame, shape, 'l')
+
+        reye=EyeSnipper.get_from_hull(frame,shape,'r')
+        leye=EyeSnipper.get_from_hull(frame,shape,'l')
         if not (reye.scope_OK and reye.shiftbox_OK and
                 leye.scope_OK and leye.shiftbox_OK):
-            cv2.imshow("Frame", frame)
             print("not ok\n")
             if cv2.waitKey(1) == ord('q'):
                 break
             continue
-        # print("Right eye:\n Retina pos in frame: {} \n Retina pos in snip: {}\n Ear:{}".format(
-        #    reye.calc_shifted_darkest_point(), reye.calc_darkest_point(), reye.eye_aspect_ratio))
-
-        # check eye aspect ratio #
-        if len(rear_list) == 1000:
-            rear_list = rear_list[1:]
-            lear_list = lear_list[1:]
-        rear_list.append(reye.eye_aspect_ratio)
-        lear_list.append(leye.eye_aspect_ratio)
-        if reye.eye_closed and leye.eye_closed:
-            print("Eyes closed\nEAR: " + str(reye.eye_aspect_ratio) + ", " + str(leye.eye_aspect_ratio))
+        print("Right eye ear:{}".format(reye.eye_aspect_ratio))
 
         # display resized right eye in gray #
         greye_area = cv2.cvtColor(reye.snip, cv2.COLOR_BGR2GRAY)
@@ -240,55 +297,115 @@ def main():
         cv2.imshow("Right eye", resized_greye_area)
 
         # find pupil in eye region #
-
         # (canny edges) #
-        reye_edges = reye.canny_edges()
-        dim = (reye_edges.shape[1] * 3, reye_edges.shape[0] * 3)
-        resized_reye_edges = cv2.resize(reye_edges, dim, interpolation=cv2.INTER_AREA)
-        cv2.imshow("Edges", resized_reye_edges)
+        # reye_edges = reye.canny_edges()
+        # dim = (reye_edges.shape[1] * 3, reye_edges.shape[0] * 3)
+        # resized_reye_edges = cv2.resize(reye_edges, dim, interpolation=cv2.INTER_AREA)
+        # cv2.imshow("Edges", resized_reye_edges)
 
-        # (darkest point/eye aspect ratio) #
-        cv2.circle(reye.snip, reye.calc_darkest_point(), radius, (0, 255, 0), 2)
-        cv2.circle(leye.snip, leye.calc_darkest_point(), radius, (0, 255, 0), 2)
-        # cv2.circle(frame, reye.calc_shifted_darkest_point(), radius, (0, 255, 0), 2)
-        # cv2.circle(frame, leye.calc_shifted_darkest_point(), radius, (0, 255, 0), 2)
-
-        # mark eye contours #
-        cv2.drawContours(frame, [left_eye_hull], -1, YELLOW_COLOR, 1)
-        cv2.drawContours(frame, [right_eye_hull], -1, YELLOW_COLOR, 1)
-        if (
-            rect.top() < 0 or rect.bottom() < 0 or
+        if (rect.top() < 0 or rect.bottom() < 0 or
             rect.left() < 0 or rect.right() < 0
         ):
-            cv2.imshow("Frame", frame)
             if cv2.waitKey(1) == ord('q'):
                 break
             continue
 
         # display resized and mark face rectangle #
-        face = frame[rect.top():rect.bottom(), rect.left():rect.right()]
-        dim = (face.shape[1] * 3, face.shape[0] * 3)
-        face = cv2.resize(face, dim, interpolation=cv2.INTER_AREA)
-        cv2.imshow("Face", face)
+        # face = frame[rect.top():rect.bottom(), rect.left():rect.right()]
+        # dim = (face.shape[1] * 3, face.shape[0] * 3)
+        # face = cv2.resize(face, dim, interpolation=cv2.INTER_AREA)
+        # cv2.imshow("Face", face)
 
-        cv2.rectangle(frame, (rect.left(), rect.top()), (rect.right(), rect.bottom()), YELLOW_COLOR)
-        cv2.imshow("Frame", frame)
+        segments = reye.get_segments()
+        # dim = (segments[1] * 3, segments[0] * 3)
+        # segments = cv2.resize(segments, dim, interpolation=cv2.INTER_AREA)
+        cv2.imshow("segments", segments)
 
-        # sshot=cv2.imread('idylla.jpg',0)
-        # sshot = cv2.cvtColor(np.array(sshot), cv2.COLOR_RGB2BGR)
+        # determine pupil movement #
+        move_left, move_right, move_up, move_down = False, False, False, False
+        print('i = ' + str(i))
+        if i < 25:
+            if reye is not None and reye.pupil_position is not None:
+                pupil_positions.append(reye.pupil_position)
+                shiftbox_size = [reye.shiftbox['maxx'] - reye.shiftbox['minx'],
+                                 reye.shiftbox['maxy'] - reye.shiftbox['miny']]
+                print('eye size: ' + str(shiftbox_size))
+                i += 1
+
+        if i == 25:
+            print(pupil_positions)
+            pupil_centered = calibrate_pupil(pupil_positions)
+            print('Pupil centered:\n' + str(pupil_centered))
+            i += 1
+
+        if i > 25:
+            if reye is not None and reye.pupil_position is not None:
+                shiftbox_size = [reye.shiftbox['maxx'] - reye.shiftbox['minx'],
+                                 reye.shiftbox['maxy'] - reye.shiftbox['miny']]
+                print('shiftbox size: ' + str(shiftbox_size[0]), str(shiftbox_size[1]))
+                shiftbox_center = [(reye.shiftbox['minx'] + reye.shiftbox['maxx']) // 2,
+                                   (reye.shiftbox['miny'] + reye.shiftbox['maxy']) // 2]
+                print('eye size: ' + str(shiftbox_size))
+                x = reye.pupil_position[0]
+                y = reye.pupil_position[1]
+                x_movement = x - pupil_centered[0]
+                y_movement = y - pupil_centered[1]
+                if abs(x_movement) < shiftbox_size[0] // 2 and abs(y_movement) < shiftbox_size[1] // 2:
+                    if abs(x_movement) > shiftbox_size[0] // 8:
+                        if x - pupil_centered[0] < 0:
+                            move_left = True
+                        else:
+                            move_right = True
+                    if abs(y_movement) > shiftbox_size[1] // 8:
+                        if y_movement < 0:
+                            move_up = True
+                        else:
+                            move_down = True
+
+        print(move_left, move_right, move_up, move_down)
+
+        sshot = cv2.imread('idylla.jpg', 0)
+        sshot = cv2.cvtColor(np.array(sshot), cv2.COLOR_GRAY2BGR)
         # cursorPos=transPoint(reye.calc_darkest_point(),reye.scope,sshot.shape[:2],(1,1))
-        # cv2.circle(sshot, cursorPos,radius, (0, 0, 255), 2)
+        if move_left:
+            if cursorPos[0] > MOVE_STEP:
+                cursorPos = (cursorPos[0] - MOVE_STEP, cursorPos[1])
+            else:
+                cursorPos = (0, cursorPos[1])
+        elif move_right:
+            if cursorPos[0] < 1200 - MOVE_STEP:
+                cursorPos = (cursorPos[0] + MOVE_STEP, cursorPos[1])
+            else:
+                cursorPos = (1200, cursorPos[1])
+        if move_up:
+            if cursorPos[1] > MOVE_STEP:
+                cursorPos = (cursorPos[0], cursorPos[1] - MOVE_STEP)
+            else:
+                cursorPos = (cursorPos[0], 0)
+        elif move_down:
+            if cursorPos[0] < 1176 - MOVE_STEP:
+                cursorPos = (cursorPos[0], cursorPos[1] + MOVE_STEP)
+            else:
+                cursorPos = (cursorPos[0], 1176)
+
+        # cv2.circle(sshot, cursorPos, radius, (0, 255, 0), 2)
         # cv2.imshow("Screenshot", sshot)
+
+        # mark face rectangle and eye contours #
+        cv2.rectangle(frame, (rect.left(), rect.top()), (rect.right(), rect.bottom()), YELLOW_COLOR)
+        cv2.drawContours(frame, [left_eye_hull], -1, YELLOW_COLOR, 1)
+        cv2.drawContours(frame, [right_eye_hull], -1, YELLOW_COLOR, 1)
+        if reye is not None and reye.pupil_position is not None:
+            cv2.circle(frame, (reye.pupil_position[0], reye.pupil_position[1]), 5, (0, 255, 0), 2)
+        if i > 25:
+            cv2.circle(frame, tuple(pupil_centered), 2, (0, 0, 255), 2)
+
+        # dim = (frame.shape[1] // 2, frame.shape[0] // 2)
+        # frame = cv2.resize(frame, dim, interpolation=cv2.INTER_AREA)
+        cv2.imshow("Frame", frame)
 
         if cv2.waitKey(1) == ord('q'):
             break
-
-    # plot eye aspect ratio data #
-    plt.plot(rear_list, label='Right eye')
-    plt.plot(lear_list, label='Left eye')
-    plt.legend()
-    plt.show()
-
 
 if __name__ == '__main__':
     main()
