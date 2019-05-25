@@ -7,12 +7,12 @@ import cv2
 import time
 import math
 from statistics import mean
+from scipy.spatial import distance
 
 radius = 5
 WIDTH, HEIGHT = 640, 480
 MOVE_STEP = 100
 
-from scipy.spatial import distance
 class EyeSnipper:
     @staticmethod
     def eye_box_hull(frame, shape, side):
