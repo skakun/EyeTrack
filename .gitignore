@@ -8,3 +8,4 @@ Video
 config.py
 cexch.pkl
 __pycache__
+__pycache__/*

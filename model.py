@@ -10,9 +10,21 @@ import os
 import sys
 import math
 import copy
+from enum import Enum
 from scipy.spatial import distance
 radius = 5
 WIDTH, HEIGHT = 640, 480
+class SnipMethod(Enum):
+    haar='haar'
+    convex='convex'
+    skip='skip'
+    def __str__(self):
+        return self.value
+class CenterDetectMethod(Enum):
+    blob='blob'
+    darkestpoint='darkestpoint'
+    def __str(self):
+        return self.value
 def trans_point(point, old_scope, new_scope, resc=(1, 1)):
     return int(resc[0] * point[0] / old_scope[0] * new_scope[0]), int(resc[1] * point[1] / old_scope[1] * new_scope[1])
 eye_cascade = cv2.CascadeClassifier('haarcascade_eye_tree_eyeglasses.xml')
@@ -57,7 +69,7 @@ class EyeSnipper:
         snip.shiftbox_OK=True
         snip.eye_aspect_ratio=1
         snip.old_scope=frame.shape
-        return snip
+        return snip,True
     @staticmethod
     def get_from_haar(frame,cascade):
         gray=cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
@@ -85,6 +97,21 @@ class EyeSnipper:
         scope= shiftbox["maxx"] - shiftbox["minx"], shiftbox["maxy"] - shiftbox["miny"]
         side='r'
         snip=EyeSnip(cropped_frame,side,shiftbox,scope)
+        snip.old_scope=frame.shape
+        snip.check_scope()
+        snip.shiftbox_OK=True
+        snip.eye_aspect_ratio=1
+        return snip,True
+    @staticmethod
+    def skip(frame):
+        shiftbox={
+                "minx":0,
+                "maxx":frame.shape[0],
+                "miny":0,
+                "maxy":frame.shape[1]
+                }
+        scope= shiftbox["maxx"] - shiftbox["minx"], shiftbox["maxy"] - shiftbox["miny"]
+        snip=EyeSnip(frame,'r',shiftbox,scope)
         snip.old_scope=frame.shape
         snip.check_scope()
         snip.shiftbox_OK=True
@@ -148,21 +175,25 @@ class EyeSnip:
         return thresh
 
     def get_segments(self):
-        im=self.snip.copy()
-        blurred= cv2.GaussianBlur(im, (5, 5), 0)
-
+        im=cv2.cvtColor(self.snip,cv2.COLOR_BGR2GRAY)
+        blurred= cv2.GaussianBlur(im, (3, 3), 0)
+        blurred=cv2.equalizeHist(blurred)
         params=cv2.SimpleBlobDetector_Params()
-#       params.filterByCircularity=True
-#       params.minCircularity=0.2
+        params.minThreshold=0
+        params.maxThreshold=30
+        params.thresholdStep=5
+        params.filterByCircularity=True
+        params.minCircularity=0.2
         params.filterByConvexity=True
-        params.minConvexity=0.8
-        params.filterByColor=True
+        params.minConvexity=0.3
+#       params.filterByColor=True
         params.blobColor= 0
         detector=cv2.SimpleBlobDetector_create(params)
-        keyPoints=detector.detect(im)
+        keyPoints=detector.detect(blurred)
         x=0
         y=0
         detected=False
+        print(keyPoints)
         for keypoint in keyPoints:
             detected=True
             x = int(keypoint.pt[0])
@@ -170,16 +201,21 @@ class EyeSnip:
             s = keypoint.size
             r = int(math.floor(s/2))
          #  print x, y
-            cv2.circle(im, (x, y), r, (255, 255, 0), 2)
+            print(x,y)
+            cv2.circle(self.snip, (x, y), r, (255, 255, 0), 2)
             break
         x,y=trans_point((x,y),self.scope,self.old_scope)
+        print(detected)
         return  im,(x,y),detected
 #def segment_edges(self):
 #       img=self.canny_edges()
 
 class Retina_detector :
     def __init__(self,capture):
-        self.capture=cv2.VideoCapture(capture)
+        if capture.isdigit():
+            self.capture=cv2.VideoCapture(int(capture))
+        else:
+            self.capture=cv2.VideoCapture(capture)
       # self.height=height
       # self.width=width
 
@@ -192,6 +228,7 @@ class Retina_detector :
         self.detected=False
         self.reye=None
         self.leye=None
+        self.snip_method=SnipMethod.haar
     def set_display_opt(self,frame,contour,snip):
         self.show_frame=frame
         self.show_contour=contour
@@ -213,6 +250,7 @@ class Retina_detector :
             state["center_y"]=None
             state["frame_size_x"]=None
             state["frame_size_y"]=None
+            return state #TODO add empty shiftbox
         else:
             state["center_x"]=self.center[0]
             state["center_y"]=self.center[1]
@@ -223,29 +261,45 @@ class Retina_detector :
 
     def detect(self):
         _,self.frame=self.capture.read()
+        if self is None:
+            return self.get_state()
         gray = cv2.cvtColor(self.frame, cv2.COLOR_BGR2GRAY)
-        self.reye,self.detected=EyeSnipper.get_from_haar(self.frame,eye_cascade)
+        if self.snip_method==SnipMethod.haar:
+            self.reye,self.detected=EyeSnipper.get_from_haar(self.frame,eye_cascade)
+        if self.snip_method==SnipMethod.convex:
+        #    self.set_predictor()
+            rects=self.detector(gray,0)
+            if len(rects)<1:
+                if self.show_frame:
+                    cv2.imshow('frame',self.frame)
+                    cv2.waitKey(1)
+                return self.get_state()
+            rect=rects[0]
+            shape=self.predictor(gray,rect)
+            shape=face_utils.shape_to_np(shape)
+            self.reye,self.detected=EyeSnipper.get_from_hull(self.frame,
+                    shape,'r')
+        if self.snip_method==SnipMethod.skip:
+            self.reye,self.detected=EyeSnipper.skip(self.frame)
         if self.reye is None:
             return self.get_state()
         if not self.detected and  self.show_frame:
             cv2.imshow('frame',self.frame)
             cv2.waitKey(1)
             return self.get_state()
-     #  print("Right eye:\n Retina pos in frame: {} \n Retina pos in snip: {}\n Ear:{}".format(
-     #      reye.calc_shifted_darkest_point(), reye.calc_darkest_point(), reye.eye_aspect_ratio))
-        toshow=self.frame.copy()
-        cv2.circle(toshow, self.reye.calc_shifted_darkest_point(),radius,(0, 255, 0))
+# if self.center_detec_method==blob
+        segframe,ncenter,self.detected=self.reye.get_segments()
+        if self.detected:
+            self.center=ncenter
+        print("center {}\n".format(self.center))
+        cv2.circle(self.frame,ncenter, radius,(0, 255, 0))
         if self.show_frame :
             cv2.imshow("frame", self.frame)
             cv2.waitKey(1)
         if  self.show_snip:
-            cv2.imshow("reye",reye.snip)
+            cv2.imshow("reye",self.reye.snip)
             cv2.waitKey(1)
-    #   if  self.show_contour:
-        segframe,ncenter,detected=self.reye.get_segments()
-        if self.detected:
-            self.center=ncenter
-        print("Right retina center :{}\n".format(self.center))
+       #print("Right retina center :{}\n".format(self.center))
         if self.show_contour:
             cv2.imshow("segments",segframe)
             cv2.waitKey(1)
