@@ -30,7 +30,7 @@ Debug calling(showing eye snip from default webcam with marked retina) is:
 	4. Add this directory to apache config.
 
 ## Server response
-Program should serve similar json a assigned endpoint.
+Program should serve similar json on assigned endpoint.
 <pre>
 {  
    "detected":true,
