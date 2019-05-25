@@ -7,7 +7,6 @@ import pickle
 import json
 from flask  import Flask 
 centrum=(None,None)
-
 url='/track/'
 parser=argparse.ArgumentParser()
 parser.add_argument('-c','--capture',help='name of videofile to be analysied or numer of capture device',default=2)

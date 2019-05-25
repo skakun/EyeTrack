@@ -12,6 +12,7 @@ import math
 import copy
 from enum import Enum
 from scipy.spatial import distance
+from State import external_state
 radius = 5
 WIDTH, HEIGHT = 640, 480
 class SnipMethod(Enum):
@@ -252,6 +253,8 @@ class Retina_detector :
     def get_state(self):
         state={}
         state["detected"]=self.detected
+        state["alarm"]=str(external_state.alarm)
+        state["wanna_talk"]=str(external_state.wanna_talk)
         if not self.detected or ( self.reye_winked() and self.leye_winked()):
             self.no_eye_contact+=1
         else:
