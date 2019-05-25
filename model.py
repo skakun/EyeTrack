@@ -67,7 +67,7 @@ class EyeSnipper:
         snip=EyeSnip(cropped_frame,side,shiftbox,scope)
         snip.check_scope()
         snip.shiftbox_OK=True
-        snip.eye_aspect_ratio=1
+        snip.eye_aspect_ratio=ear
         snip.old_scope=frame.shape
         return snip,True
     @staticmethod
@@ -193,6 +193,7 @@ class EyeSnip:
         x=0
         y=0
         detected=False
+        s=None
         print(keyPoints)
         for keypoint in keyPoints:
             detected=True
@@ -206,7 +207,7 @@ class EyeSnip:
             break
         x,y=trans_point((x,y),self.scope,self.old_scope)
         print(detected)
-        return  im,(x,y),detected
+        return  im,(x,y),detected,s
 #def segment_edges(self):
 #       img=self.canny_edges()
 
@@ -228,11 +229,17 @@ class Retina_detector :
         self.detected=False
         self.reye=None
         self.leye=None
+        self.winked_frames=0
         self.snip_method=SnipMethod.haar
+        self.no_eye_contact=0
     def set_display_opt(self,frame,contour,snip):
         self.show_frame=frame
         self.show_contour=contour
         self.show_snip=snip
+    def reye_winked(self):
+        return self.reye.eye_aspect_ratio<0.15
+    def leye_winked(self):
+        return self.leye.eye_aspect_ratio<0.15
     def set_cascade(self,path='haarcascade_eye_tree_eyeglasses.xml'):
         self.eye_cascade = cv2.CascadeClassifier(path)
     def set_predictor(self,path="shape_predictor_68_face_landmarks.dat"):
@@ -245,18 +252,40 @@ class Retina_detector :
     def get_state(self):
         state={}
         state["detected"]=self.detected
+        if not self.detected or ( self.reye_winked() and self.leye_winked()):
+            self.no_eye_contact+=1
+        else:
+            self.no_eye_contact=0
+        state["no_eye_contact_since_frames"]=self.no_eye_contact
+        shiftbox={}
+        if self.reye is None or self.reye.shiftbox is None:
+            shiftbox = {
+                "minx": 0,
+                "maxx": 0,
+                "miny": 0,
+                "maxy": 0
+            }
+        else:
+            shiftbox=self.reye.shiftbox
+        sbox={"eye_snip_"+key :int(val) for key,val in shiftbox.items()}
         if not self.detected:
             state["center_x"]=None
             state["center_y"]=None
             state["frame_size_x"]=None
             state["frame_size_y"]=None
-            return state #TODO add empty shiftbox
+            state["right_eye_winked"]=None
+            state["left_eye_winked"]=None
+            state["retina_size"]=None
+        #   return state #TODO add empty shiftbox
         else:
             state["center_x"]=self.center[0]
             state["center_y"]=self.center[1]
             state["frame_size_x"]=self.frame.shape[0]
             state["frame_size_y"]=self.frame.shape[1]
-        sbox={"eye_snip_"+key :int(val) for key,val in self.reye.shiftbox.items()}
+            state["right_eye_winked"]=str(self.reye_winked())
+            state["left_eye_winked"]=str(self.leye_winked())
+            state["retina_size"]=self.retina_size
+       #sbox={"eye_snip_"+key :int(val) for key,val in self.reye.shiftbox.items()}
         return  {**state,**sbox} #wtf, python?
 
     def detect(self):
@@ -279,6 +308,9 @@ class Retina_detector :
             shape=face_utils.shape_to_np(shape)
             self.reye,self.detected=EyeSnipper.get_from_hull(self.frame,
                     shape,'r')
+            self.leye,self.detected=EyeSnipper.get_from_hull(self.frame,
+                    shape,'l')
+            print("reye aspect ratio={}\n".format(self.reye.eye_aspect_ratio))
         if self.snip_method==SnipMethod.skip:
             self.reye,self.detected=EyeSnipper.skip(self.frame)
         if self.reye is None:
@@ -288,7 +320,7 @@ class Retina_detector :
             cv2.waitKey(1)
             return self.get_state()
 # if self.center_detec_method==blob
-        segframe,ncenter,self.detected=self.reye.get_segments()
+        segframe,ncenter,self.detected,self.retina_size=self.reye.get_segments()
         if self.detected:
             self.center=ncenter
         print("center {}\n".format(self.center))
