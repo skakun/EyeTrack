@@ -15,6 +15,6 @@ def serve():
     fp=open(app.config["WORKING_DIR"]+'cexch.pkl','r')
     j=fp.read()
     fp.close()
-    return  j
+    return  jsonify(j)
 
 
