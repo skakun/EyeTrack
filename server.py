@@ -1,4 +1,4 @@
-from flask  import Flask,jsonify
+from flask  import Flask,jsonify,make_response
 import pickle
 import os
 from config import BaseConfig
@@ -15,6 +15,6 @@ def serve():
     fp=open(app.config["WORKING_DIR"]+'cexch.pkl','r')
     j=fp.read()
     fp.close()
-    return  jsonify(j)
+    return  j
 
 
