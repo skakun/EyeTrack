@@ -12,10 +12,12 @@ def set_point(p):
     centre=p
 @app.route(url)
 def serve():
-#   fp=open('home/krzysztof/reps/EyeTrack/cexch.pkl','rb')
-#   fp=open(app.config["WORKING_DIR"]+'cexch.pkl','r')
-#   j=fp.read()
-#   fp.close()
-#   return  jsonify(j)
+    fp=open('home/krzysztof/reps/EyeTrack/cexch.pkl','rb')
+    fp=open(app.config["WORKING_DIR"]+'cexch.pkl','r')
+    j=fp.read()
+    fp.close()
+    return  jsonify(j)
+@app.route("/bible")
+def bible():
     return subprocess.check_output("randverse")
 
