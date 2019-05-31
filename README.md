@@ -74,3 +74,5 @@ Program should serve similar json on assigned endpoint.
 ### eye_snip_miny
 ### eye_snip_maxy
 	Dimensions of area around eye, to which frame was cropped.
+### time_stamp
+    Time of last detection

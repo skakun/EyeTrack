@@ -10,6 +10,7 @@ import os
 import sys
 import math
 import copy
+import datetime
 from enum import Enum
 from scipy.spatial import distance
 from State import external_state
@@ -260,6 +261,7 @@ class Retina_detector :
         else:
             self.no_eye_contact=0
         state["no_eye_contact_since_frames"]=self.no_eye_contact
+        state["time_stamp"]=str(datetime.datetime.now())
         shiftbox={}
         if self.reye is None or self.reye.shiftbox is None:
             shiftbox = {
