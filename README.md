@@ -36,6 +36,7 @@ Program should serve similar json on assigned endpoint.
    "detected":true,
    "alarm":"False",
    "wanna_talk":"False",
+   "time_stamp":"2019-05-31 17:07:28.434922",
    "no_eye_contact_since_frames":0,
    "center_x":423,
    "center_y":1069,

@@ -234,6 +234,8 @@ class Retina_detector :
         self.winked_frames=0
         self.snip_method=SnipMethod.haar
         self.no_eye_contact=0
+        self.detections=0
+        self.pupil_positions=[]
     def set_display_opt(self,frame,contour,snip):
         self.show_frame=frame
         self.show_contour=contour
@@ -260,6 +262,7 @@ class Retina_detector :
             self.no_eye_contact+=1
         else:
             self.no_eye_contact=0
+            self.detected+=1
         state["no_eye_contact_since_frames"]=self.no_eye_contact
         state["time_stamp"]=str(datetime.datetime.now())
         shiftbox={}
@@ -328,6 +331,7 @@ class Retina_detector :
         segframe,ncenter,self.detected,self.retina_size=self.reye.get_segments()
         if self.detected:
             self.center=ncenter
+            self.pupil_positions.append(center)
         print("center {}\n".format(self.center))
         cv2.circle(self.frame,ncenter, radius,(0, 255, 0))
         if self.show_frame :
