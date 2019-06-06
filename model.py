@@ -71,7 +71,7 @@ class EyeSnipper:
         snip.shiftbox_OK=True
         snip.eye_aspect_ratio=ear
         snip.old_scope=frame.shape
-        return snip,True
+        return snip,snip.check_scope()
     @staticmethod
     def get_from_haar(frame,cascade):
         gray=cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
@@ -236,6 +236,7 @@ class Retina_detector :
         self.no_eye_contact=0
         self.detections=0
         self.pupil_positions=[]
+        self.detect_streak=0
     def set_display_opt(self,frame,contour,snip):
         self.show_frame=frame
         self.show_contour=contour
@@ -260,9 +261,10 @@ class Retina_detector :
         state["wanna_talk"]=str(external_state.wanna_talk)
         if not self.detected or ( self.reye_winked() and self.leye_winked()):
             self.no_eye_contact+=1
+            self.detect_streak=0
         else:
             self.no_eye_contact=0
-            self.detected+=1
+            self.detect_streak+=1
         state["no_eye_contact_since_frames"]=self.no_eye_contact
         state["time_stamp"]=str(datetime.datetime.now())
         shiftbox={}
@@ -298,7 +300,7 @@ class Retina_detector :
 
     def detect(self):
         _,self.frame=self.capture.read()
-        if self is None:
+        if self.frame is None:
             return self.get_state()
         gray = cv2.cvtColor(self.frame, cv2.COLOR_BGR2GRAY)
         if self.snip_method==SnipMethod.haar:
@@ -310,6 +312,8 @@ class Retina_detector :
                 if self.show_frame:
                     cv2.imshow('frame',self.frame)
                     cv2.waitKey(1)
+                self.detected=False
+               #print("none found")
                 return self.get_state()
             rect=rects[0]
             shape=self.predictor(gray,rect)
@@ -322,16 +326,18 @@ class Retina_detector :
         if self.snip_method==SnipMethod.skip:
             self.reye,self.detected=EyeSnipper.skip(self.frame)
         if self.reye is None:
+            self.detected=False
             return self.get_state()
         if not self.detected and  self.show_frame:
             cv2.imshow('frame',self.frame)
             cv2.waitKey(1)
             return self.get_state()
 # if self.center_detec_method==blob
-        segframe,ncenter,self.detected,self.retina_size=self.reye.get_segments()
+        segframe,ncenter,seg_found,self.retina_size=self.reye.get_segments()
+        self.detected=self.detected and seg_found
         if self.detected:
             self.center=ncenter
-            self.pupil_positions.append(center)
+            self.pupil_positions.append(self.center)
         print("center {}\n".format(self.center))
         cv2.circle(self.frame,ncenter, radius,(0, 255, 0))
         if self.show_frame :

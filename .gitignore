@@ -7,5 +7,6 @@ Video
 *.py.*
 config.py
 cexch.pkl
+TODO.txt
 __pycache__
 __pycache__/*
