@@ -253,8 +253,12 @@ class Retina_detector :
         self.show_contour=contour
         self.show_snip=snip
     def reye_winked(self):
+        if self.reye is None:
+            return  False
         return self.reye.eye_aspect_ratio<0.15
     def leye_winked(self):
+        if self.leye is None:
+            return  False
         return self.leye.eye_aspect_ratio<0.15
     def set_cascade(self,path='haarcascade_eye_tree_eyeglasses.xml'):
         self.eye_cascade = cv2.CascadeClassifier(path)
@@ -349,11 +353,9 @@ class Retina_detector :
         if self.detected:
             self.center=ncenter
             self.pupil_positions.append(self.center)
-            
 #############################
 
 #############################    
-            
         print("center {}\n".format(self.center))
         cv2.circle(self.frame,ncenter, radius,(0, 255, 0))
         if self.show_frame :

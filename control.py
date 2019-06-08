@@ -9,11 +9,11 @@ class Control:
     MOVE_STEP = 20
     def __init__(self):
         self.move_mode_open=True
+        pag.FAILSAFE=False
     def calibrate_pupil(pupil_positions):
         max_pos = None
-        pos_counts = [[0, []] for _ in range(64)]
+        pos_counts = [[0, []] for _ in range(45)]
         for pos in pupil_positions:
-            print(pos)
             x = pos[0]
             n = x // 20
             pos_counts[n][1].append(pos)
@@ -23,10 +23,11 @@ class Control:
 
         pupil_positions = max_pos[1]
         max_pos = None
-        pos_counts = [[0, []] for _ in range(36)]
+        pos_counts = [[0, []] for _ in range(80)]
         for pos in pupil_positions:
             y = pos[1]
             n = y // 20
+            print(y, n)
             pos_counts[n][1].append(pos)
             pos_counts[n][0] += 1
             if max_pos is None or pos_counts[n][0] > max_pos[0]:
@@ -93,8 +94,16 @@ class Control:
         return cursor_pos
     def proc_control(self,detector):
             radius=Control.radius
+            self.move_mode_open=self.move_mode_open  != detector.leye_winked()
+            if detector.leye_winked():
+                print("MODE CHANGED")
+            if not self.move_mode_open:
+                return
             if detector.center is None:
                 return
+            if detector.reye_winked():
+                print("CLICK")
+                pag.click()
             if detector.calibration_frame_count < 25:
                 print(detector.center)
                 detector.pupil_positions_MTARNOW.append(detector.center)
@@ -108,13 +117,11 @@ class Control:
                 move_left, move_right, move_up, move_down = Control.get_pupil_movement(detector.reye, detector.center, detector.pupil_centered)
                 detector.cursor_pos = Control.move_cursor(move_left, move_right, move_up, move_down, detector.cursor_pos)
 
-            sshot = cv2.imread('idylla.jpg', 0)
-            sshot = cv2.cvtColor(np.array(sshot), cv2.COLOR_GRAY2BGR)
-            cv2.circle(sshot, detector.cursor_pos, radius, (0, 0, 255), 5)
-            cv2.imshow("Screenshot", sshot)
-            cv2.waitKey(1)
+#           sshot = cv2.imread('idylla.jpg', 0)
+#           sshot = cv2.cvtColor(np.array(sshot), cv2.COLOR_GRAY2BGR)
+#           cv2.circle(sshot, detector.cursor_pos, radius, (0, 0, 255), 5)
+#           cv2.imshow("Screenshot", sshot)
+#           cv2.waitKey(1)
             if detector.calibration_frame_count > 25:
                 print(detector.pupil_centered)
                 cv2.circle(detector.frame, (int(detector.pupil_centered[0]), int(detector.pupil_centered[1])), 2, (0, 0, 255), 2)
-
-
