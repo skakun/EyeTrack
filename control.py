@@ -2,14 +2,18 @@ from model import Retina_detector
 import pyautogui as pag
 import cv2
 import numpy as np
+import subprocess
 from statistics import mean
 ##########################################################
 class Control:
     radius=5
     MOVE_STEP = 20
     def __init__(self):
-        self.move_mode_open=True
+        self.move_mode_open=False
         pag.FAILSAFE=False
+        res=subprocess.check_output("xrandr | grep '*' |awk  '{print $1}' |head -1" )
+        res=res.split('x')
+        self.res=[ int(i) for i in res]
     def calibrate_pupil(pupil_positions):
         max_pos = None
         pos_counts = [[0, []] for _ in range(45)]
@@ -75,34 +79,34 @@ class Control:
             else:
                 cursor_pos = (radius, cursor_pos[1])
         elif move_right:
-            if cursor_pos[0] < 1200 - MOVE_STEP - radius:
+            if cursor_pos[0] < self.res[0] - MOVE_STEP - radius:
                 cursor_pos = (cursor_pos[0] + MOVE_STEP, cursor_pos[1])
             else:
-                cursor_pos = (1200 - radius, cursor_pos[1])
+                cursor_pos = (self.res[0] - radius, cursor_pos[1])
         if move_up:
             if cursor_pos[1] > MOVE_STEP + radius:
                 cursor_pos = (cursor_pos[0], cursor_pos[1] - MOVE_STEP)
             else:
                 cursor_pos = (cursor_pos[0], radius)
         elif move_down:
-            if cursor_pos[1] < 960 - MOVE_STEP - radius:
+            if cursor_pos[1] < self.res[1] - MOVE_STEP - radius:
                 cursor_pos = (cursor_pos[0], cursor_pos[1] + MOVE_STEP)
             else:
-                cursor_pos = (cursor_pos[0], 960 - radius)
+                cursor_pos = (cursor_pos[0], self.res[1] - radius)
         pag.moveTo(cursor_pos)
         return cursor_pos
     def proc_control(self,detector):
             radius=Control.radius
             self.move_mode_open=self.move_mode_open  != detector.leye_winked()
+            if detector.reye_winked():
+                print("CLICK")
+                pag.click()
             if detector.leye_winked():
                 print("MODE CHANGED")
             if not self.move_mode_open:
                 return
             if detector.center is None:
                 return
-            if detector.reye_winked():
-                print("CLICK")
-                pag.click()
             if detector.calibration_frame_count < 25:
                 print(detector.center)
                 detector.pupil_positions_MTARNOW.append(detector.center)

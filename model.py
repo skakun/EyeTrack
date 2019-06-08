@@ -351,6 +351,7 @@ class Retina_detector :
             self.leye,self.detected=EyeSnipper.get_from_hull(self.frame,
                     shape,'l')
             print("reye aspect ratio={}\n".format(self.reye.eye_aspect_ratio))
+            print("leye aspect ratio={}\n".format(self.reye.eye_aspect_ratio))
         if self.snip_method==SnipMethod.skip:
             self.reye,self.detected=EyeSnipper.skip(self.frame)
         if self.reye is None:
