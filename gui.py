@@ -41,8 +41,10 @@ class MainWindow(QMainWindow):
                 alert_data['alarm'] = True
             else:
                 alert_data['alarm'] = False
-            f.truncate(0)
-            json.dumps(alert_data, f)
+            f.seek(0)
+            f.truncate()
+            json.dump(alert_data, f)
+            f.close()
 
     def on_inform_click(self):
         print('Powiadomienie')
@@ -52,9 +54,10 @@ class MainWindow(QMainWindow):
                 alert_data['inform'] = True
             else:
                 alert_data['inform'] = False
-            f.truncate(0)
-            json.dumps(alert_data, f)
-
+            f.seek(0)
+            f.truncate()
+            json.dump(alert_data, f)
+            f.close()
 
 def main():
     app = QtWidgets.QApplication(sys.argv)
