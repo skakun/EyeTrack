@@ -307,7 +307,7 @@ def move_cursor(move_left, move_right, move_up, move_down, cursor_pos):
         else:
             cursor_pos = (cursor_pos[0], 960 - radius)
     return cursor_pos
-    
+
 
 shape_predictor = "shape_predictor_68_face_landmarks.dat"
 detector = dlib.get_frontal_face_detector()
