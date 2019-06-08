@@ -13,7 +13,10 @@ import copy
 import datetime
 from enum import Enum
 from scipy.spatial import distance
+from statistics import mean
+
 from State import external_state
+
 radius = 5
 WIDTH, HEIGHT = 640, 480
 class SnipMethod(Enum):
@@ -213,6 +216,86 @@ class EyeSnip:
 #def segment_edges(self):
 #       img=self.canny_edges()
 
+
+def calibrate_pupil(pupil_positions):
+    max_pos = None
+    pos_counts = [[0, []] for _ in range(64)]
+    for pos in pupil_positions:
+        x = pos[0]
+        n = x // 20
+        pos_counts[n][1].append(pos)
+        pos_counts[n][0] += 1
+        if max_pos is None or pos_counts[n][0] > max_pos[0]:
+            max_pos = pos_counts[n]
+
+    pupil_positions = max_pos[1]
+    max_pos = None
+    pos_counts = [[0, []] for _ in range(36)]
+    for pos in pupil_positions:
+        y = pos[1]
+        n = y // 20
+        pos_counts[n][1].append(pos)
+        pos_counts[n][0] += 1
+        if max_pos is None or pos_counts[n][0] > max_pos[0]:
+            max_pos = pos_counts[n]
+
+    pupil_centered = []
+    if max_pos is not None:
+        pupil_centered.append(mean([elem[0] for elem in max_pos[1]]))
+        pupil_centered.append(mean([elem[1] for elem in max_pos[1]]))
+    return pupil_centered
+
+
+def get_pupil_movement(reye, pupil_position, pupil_centered):
+    move_left, move_right, move_up, move_down = False, False, False, False
+    if reye is not None and reye.pupil_position is not None:
+        shiftbox_size = [reye.shiftbox['maxx'] - reye.shiftbox['minx'],
+                         reye.shiftbox['maxy'] - reye.shiftbox['miny']]
+        print('eye size: ' + str(shiftbox_size))
+        x = pupil_position[0]
+        y = pupil_position[1]
+        x_movement = x - pupil_centered[0]
+        y_movement = y - pupil_centered[1]
+        # if abs(x_movement) < shiftbox_size[0] // 2 and abs(y_movement) < shiftbox_size[1] // 2:
+        if abs(x_movement) > shiftbox_size[0] // 8:
+            if x - pupil_centered[0] < 0:
+                move_right = True
+            else:
+                move_left = True
+        if abs(y_movement) > shiftbox_size[1] // 8:
+            if y_movement < 0:
+                move_up = True
+            else:
+                move_down = True
+    return move_left, move_right, move_up, move_down
+
+
+MOVE_STEP = 20
+def move_cursor(move_left, move_right, move_up, move_down, cursor_pos):
+    print(move_left, move_right, move_up, move_down)
+    if move_left:
+        if cursor_pos[0] > MOVE_STEP + radius:
+            cursor_pos = (cursor_pos[0] - MOVE_STEP, cursor_pos[1])
+        else:
+            cursor_pos = (radius, cursor_pos[1])
+    elif move_right:
+        if cursor_pos[0] < 1200 - MOVE_STEP - radius:
+            cursor_pos = (cursor_pos[0] + MOVE_STEP, cursor_pos[1])
+        else:
+            cursor_pos = (1200 - radius, cursor_pos[1])
+    if move_up:
+        if cursor_pos[1] > MOVE_STEP + radius:
+            cursor_pos = (cursor_pos[0], cursor_pos[1] - MOVE_STEP)
+        else:
+            cursor_pos = (cursor_pos[0], radius)
+    elif move_down:
+        if cursor_pos[1] < 960 - MOVE_STEP - radius:
+            cursor_pos = (cursor_pos[0], cursor_pos[1] + MOVE_STEP)
+        else:
+            cursor_pos = (cursor_pos[0], 960 - radius)
+    return cursor_pos
+
+
 class Retina_detector :
     def __init__(self,capture):
         if capture.isdigit():
@@ -237,6 +320,11 @@ class Retina_detector :
         self.detections=0
         self.pupil_positions=[]
         self.detect_streak=0
+
+        self.calibration_frame_count = 0
+        self.pupil_positions_MTARNOW = []
+        self.pupil_centered = []
+        self.cursor_pos = (600, 450)
     def set_display_opt(self,frame,contour,snip):
         self.show_frame=frame
         self.show_contour=contour
@@ -338,6 +426,28 @@ class Retina_detector :
         if self.detected:
             self.center=ncenter
             self.pupil_positions.append(self.center)
+            
+#############################
+
+            if self.calibration_frame_count < 25:
+                self.pupil_positions_MTARNOW.append(self.center)
+                self.calibration_frame_count += 1
+
+            if self.calibration_frame_count == 25:
+                self.pupil_centered = calibrate_pupil(self.pupil_positions_MTARNOW)
+                self.calibration_frame_count += 1
+
+            if self.calibration_frame_count > 25:
+                move_left, move_right, move_up, move_down = get_pupil_movement(self.reye, self.center, self.pupil_centered)
+                self.cursor_pos = move_cursor(move_left, move_right, move_up, move_down, self.cursor_pos)
+
+        sshot = cv2.imread('idylla.jpg', 0)
+        sshot = cv2.cvtColor(np.array(sshot), cv2.COLOR_GRAY2BGR)
+        cv2.circle(sshot, self.cursor_pos, radius, (0, 0, 255), 5)
+        cv2.imshow("Screenshot", sshot)
+
+#############################    
+            
         print("center {}\n".format(self.center))
         cv2.circle(self.frame,ncenter, radius,(0, 255, 0))
         if self.show_frame :
@@ -350,4 +460,4 @@ class Retina_detector :
         if self.show_contour:
             cv2.imshow("segments",segframe)
             cv2.waitKey(1)
-        return  self.get_state()
+        return self.get_state()
