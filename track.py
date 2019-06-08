@@ -260,6 +260,55 @@ def calibrate_pupil(pupil_positions):
     return pupil_centered
 
 
+def get_pupil_movement(reye, pupil_centered):
+    move_left, move_right, move_up, move_down = False, False, False, False
+    if reye is not None and reye.pupil_position is not None:
+        shiftbox_size = [reye.shiftbox['maxx'] - reye.shiftbox['minx'],
+                         reye.shiftbox['maxy'] - reye.shiftbox['miny']]
+        print('eye size: ' + str(shiftbox_size))
+        x = reye.pupil_position[0]
+        y = reye.pupil_position[1]
+        x_movement = x - pupil_centered[0]
+        y_movement = y - pupil_centered[1]
+        # if abs(x_movement) < shiftbox_size[0] // 2 and abs(y_movement) < shiftbox_size[1] // 2:
+        if abs(x_movement) > shiftbox_size[0] // 8:
+            if x - pupil_centered[0] < 0:
+                move_right = True
+            else:
+                move_left = True
+        if abs(y_movement) > shiftbox_size[1] // 8:
+            if y_movement < 0:
+                move_up = True
+            else:
+                move_down = True
+    return move_left, move_right, move_up, move_down
+
+
+def move_cursor(move_left, move_right, move_up, move_down, cursor_pos):
+    print(move_left, move_right, move_up, move_down)
+    if move_left:
+        if cursor_pos[0] > MOVE_STEP + radius:
+            cursor_pos = (cursor_pos[0] - MOVE_STEP, cursor_pos[1])
+        else:
+            cursor_pos = (radius, cursor_pos[1])
+    elif move_right:
+        if cursor_pos[0] < 1200 - MOVE_STEP - radius:
+            cursor_pos = (cursor_pos[0] + MOVE_STEP, cursor_pos[1])
+        else:
+            cursor_pos = (1200 - radius, cursor_pos[1])
+    if move_up:
+        if cursor_pos[1] > MOVE_STEP + radius:
+            cursor_pos = (cursor_pos[0], cursor_pos[1] - MOVE_STEP)
+        else:
+            cursor_pos = (cursor_pos[0], radius)
+    elif move_down:
+        if cursor_pos[1] < 960 - MOVE_STEP - radius:
+            cursor_pos = (cursor_pos[0], cursor_pos[1] + MOVE_STEP)
+        else:
+            cursor_pos = (cursor_pos[0], 960 - radius)
+    return cursor_pos
+
+
 shape_predictor = "shape_predictor_68_face_landmarks.dat"
 detector = dlib.get_frontal_face_detector()
 predictor = dlib.shape_predictor(shape_predictor)
@@ -290,10 +339,10 @@ def main():
     cv2.namedWindow('Frame')
     cv2.setMouseCallback('Frame', cursor_position)
 
-    i = 0
+    calibration_frame_count = 0
     pupil_positions = []
     pupil_centered = []
-    cursorPos = (600, 450)
+    cursor_pos = (600, 450)
     while True:
         # find face and eyes #
         # capture.read()
@@ -355,79 +404,28 @@ def main():
         segments = reye.get_segments()
         # dim = (segments[1] * 3, segments[0] * 3)
         # segments = cv2.resize(segments, dim, interpolation=cv2.INTER_AREA)
-        dim = (segments.shape[1] * 3, segments.shape[0] * 3)
-        resized_segments = cv2.resize(segments, dim, interpolation=cv2.INTER_AREA)
-        cv2.imshow("segments", resized_segments)
+        # dim = (segments.shape[1] * 3, segments.shape[0] * 3)
+        # resized_segments = cv2.resize(segments, dim, interpolation=cv2.INTER_AREA)
+        # cv2.imshow("segments", resized_segments)
 
         # determine pupil movement #
-        move_left, move_right, move_up, move_down = False, False, False, False
-        print('i = ' + str(i))
-        if i < 25:
+        if calibration_frame_count < 25:
             if reye is not None and reye.pupil_position is not None:
                 pupil_positions.append(reye.pupil_position)
-                shiftbox_size = [reye.shiftbox['maxx'] - reye.shiftbox['minx'],
-                                 reye.shiftbox['maxy'] - reye.shiftbox['miny']]
-                print('eye size: ' + str(shiftbox_size))
-                i += 1
+                calibration_frame_count += 1
 
-        if i == 25:
-            print(pupil_positions)
+        if calibration_frame_count == 25:
             pupil_centered = calibrate_pupil(pupil_positions)
-            print('Pupil centered:\n' + str(pupil_centered))
-            i += 1
+            calibration_frame_count += 1
 
-        if i > 25:
-            if reye is not None and reye.pupil_position is not None:
-                shiftbox_size = [reye.shiftbox['maxx'] - reye.shiftbox['minx'],
-                                 reye.shiftbox['maxy'] - reye.shiftbox['miny']]
-                print('shiftbox size: ' + str(shiftbox_size[0]), str(shiftbox_size[1]))
-                shiftbox_center = [(reye.shiftbox['minx'] + reye.shiftbox['maxx']) // 2,
-                                   (reye.shiftbox['miny'] + reye.shiftbox['maxy']) // 2]
-                print('eye size: ' + str(shiftbox_size))
-                x = reye.pupil_position[0]
-                y = reye.pupil_position[1]
-                x_movement = x - pupil_centered[0]
-                y_movement = y - pupil_centered[1]
-                # if abs(x_movement) < shiftbox_size[0] // 2 and abs(y_movement) < shiftbox_size[1] // 2:
-                if abs(x_movement) > shiftbox_size[0] // 8:
-                    if x - pupil_centered[0] < 0:
-                        move_right = True
-                    else:
-                        move_left = True
-                if abs(y_movement) > shiftbox_size[1] // 8:
-                    if y_movement < 0:
-                        move_up = True
-                    else:
-                        move_down = True
-
-        print(move_left, move_right, move_up, move_down)
-
+        if calibration_frame_count > 25:
+            move_left, move_right, move_up, move_down = get_pupil_movement(reye, pupil_centered)
+            cursor_pos = move_cursor(move_left, move_right, move_up, move_down, cursor_pos)
 
         sshot = cv2.imread('idylla.jpg', 0)
         sshot = cv2.cvtColor(np.array(sshot), cv2.COLOR_GRAY2BGR)
-        # cursorPos=transPoint(reye.calc_darkest_point(),reye.scope,sshot.shape[:2],(1,1))
-        if move_left:
-            if cursorPos[0] > MOVE_STEP + radius:
-                cursorPos = (cursorPos[0] - MOVE_STEP, cursorPos[1])
-            else:
-                cursorPos = (radius, cursorPos[1])
-        elif move_right:
-            if cursorPos[0] < 1200 - MOVE_STEP - radius:
-                cursorPos = (cursorPos[0] + MOVE_STEP, cursorPos[1])
-            else:
-                cursorPos = (1200 - radius, cursorPos[1])
-        if move_up:
-            if cursorPos[1] > MOVE_STEP + radius:
-                cursorPos = (cursorPos[0], cursorPos[1] - MOVE_STEP)
-            else:
-                cursorPos = (cursorPos[0], radius)
-        elif move_down:
-            if cursorPos[1] < 960 - MOVE_STEP - radius:
-                cursorPos = (cursorPos[0], cursorPos[1] + MOVE_STEP)
-            else:
-                cursorPos = (cursorPos[0], 960 - radius)
-
-        cv2.circle(sshot, cursorPos, radius, (0, 0, 255), 5)
+        print(cursor_pos)
+        cv2.circle(sshot, cursor_pos, radius, (0, 0, 255), 5)
         cv2.imshow("Screenshot", sshot)
 
         # mark face rectangle and eye contours #
@@ -436,7 +434,7 @@ def main():
         cv2.drawContours(frame, [right_eye_hull], -1, YELLOW_COLOR, 1)
         if reye is not None and reye.pupil_position is not None:
             cv2.circle(frame, (reye.pupil_position[0], reye.pupil_position[1]), 5, (0, 255, 0), 2)
-        if i > 25:
+        if calibration_frame_count > 25:
             cv2.circle(frame, tuple(pupil_centered), 2, (0, 0, 255), 2)
 
         # dim = (frame.shape[1] // 2, frame.shape[0] // 2)
