@@ -7,6 +7,8 @@ import pickle
 import json
 from flask  import Flask 
 import control
+import gui
+
 centrum=(None,None)
 url='/track/'
 parser=argparse.ArgumentParser()
@@ -28,6 +30,7 @@ if detec.snip_method==SnipMethod.haar:
 if detec.snip_method==SnipMethod.convex:
     detec.set_predictor()
 ctrl=control.Control()
+# gui.main()
 while True:
     jc=detec.detect()
     ctrl.proc_control(detec)
