@@ -236,6 +236,8 @@ class Retina_detector :
         self.center=None
         self.detected=False
         self.reye=None
+        self.prev_reye_detected=False
+        self.prev_leye_detected=False
         self.leye=None
         self.winked_frames=0
         self.snip_method=SnipMethod.haar
@@ -248,15 +250,21 @@ class Retina_detector :
         self.pupil_positions_MTARNOW = []
         self.pupil_centered = []
         self.cursor_pos = (600, 450)
-    def set_display_opt(self,frame,contour,snip):
+    def set_display_opt(self,frame,contour,leye,reye):
         self.show_frame=frame
         self.show_contour=contour
-        self.show_snip=snip
+#       self.show_snip=snip
+        self.show_leye=leye
+        self.show_reye=reye
     def reye_winked(self):
+        return  self.prev_reye_detected and not self.reye_detected()
+    def leye_winked(self):
+        return  self.prev_leye_detected and not self.leye_detected()
+    def reye_detected(self):
         if self.reye is None:
             return  False
         return self.reye.eye_aspect_ratio<0.15
-    def leye_winked(self):
+    def leye_detected(self):
         if self.leye is None:
             return  False
         return self.leye.eye_aspect_ratio<0.15
@@ -274,7 +282,7 @@ class Retina_detector :
         state["detected"]=self.detected
         state["alarm"]=str(external_state.alarm)
         state["wanna_talk"]=str(external_state.wanna_talk)
-        if not self.detected or ( self.reye_winked() and self.leye_winked()):
+        if not self.detected or ( self.reye_detected() and self.leye_detected()):
             self.no_eye_contact+=1
             self.detect_streak=0
         else:
@@ -318,6 +326,11 @@ class Retina_detector :
         if self.frame is None:
             return self.get_state()
         gray = cv2.cvtColor(self.frame, cv2.COLOR_BGR2GRAY)
+
+        #previous
+        self.prev_reye_detected=self.reye_detected()
+        self.prev_leye_detected=self.leye_detected()
+
         if self.snip_method==SnipMethod.haar:
             self.reye,self.detected=EyeSnipper.get_from_haar(self.frame,eye_cascade)
         if self.snip_method==SnipMethod.convex:
@@ -347,24 +360,23 @@ class Retina_detector :
             cv2.imshow('frame',self.frame)
             cv2.waitKey(1)
             return self.get_state()
-# if self.center_detec_method==blob
-        segframe,ncenter,seg_found,self.retina_size=self.reye.get_segments()
-        self.detected=self.detected and seg_found
+        if self.center_detec_method==CenterDetectMethod.blob:
+            segframe,ncenter,seg_found,self.retina_size=self.reye.get_segments()
+            self.detected=self.detected and seg_found
         if self.detected:
             self.center=ncenter
             self.pupil_positions.append(self.center)
-#############################
-
-#############################    
         print("center {}\n".format(self.center))
         cv2.circle(self.frame,ncenter, radius,(0, 255, 0))
         if self.show_frame :
             cv2.imshow("frame", self.frame)
             cv2.waitKey(1)
-        if  self.show_snip:
+        if  self.show_reye:
             cv2.imshow("reye",self.reye.snip)
             cv2.waitKey(1)
-       #print("Right retina center :{}\n".format(self.center))
+        if  self.show_leye:
+            cv2.imshow("leye",self.leye.snip)
+            cv2.waitKey(1)
         if self.show_contour:
             cv2.imshow("segments",segframe)
             cv2.waitKey(1)
