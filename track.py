@@ -20,7 +20,7 @@ parser.add_argument('--showreye','-r',help='show frame cropped to right eye surr
 #parser.add_argument('--url',help='adress for posting results TODO')
 parser.add_argument('--snip',type=SnipMethod,choices=list(SnipMethod),help='method of detecting eye region',default=SnipMethod.convex)
 parser.add_argument('--center',type=CenterDetectMethod,choices=list(CenterDetectMethod),help='method of detecting retina center',default=CenterDetectMethod.blob)
-parser.add_argument('--use_control',help='use eye movements to control cursor')
+parser.add_argument('--use_control','u',help='use eye movements to control cursor')
 args=parser.parse_args()
 detec=model.Retina_detector(args.capture)
 detec.snip_method=args.snip
