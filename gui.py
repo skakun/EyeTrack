@@ -46,7 +46,7 @@ class MainWindow(QMainWindow):
         with open('alert_data.pkl', 'w') as f:
             f.truncate(0)
             alert_data = {'alarm': self.alarm, 'inform': self.inform}
-            json.dumps(alert_data, f)
+            json.dump(alert_data, f)
 
     def on_inform_click(self):
         print('Powiadomienie')
@@ -58,7 +58,7 @@ class MainWindow(QMainWindow):
         with open('alert_data.pkl', 'w') as f:
             f.truncate(0)
             alert_data = {'alarm': self.alarm, 'inform': self.inform}
-            json.dumps(alert_data, f)
+            json.dump(alert_data, f)
 
 
 def main():

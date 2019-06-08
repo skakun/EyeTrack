@@ -1,1 +1,1 @@
-{"alarm": true, "inform": true}
+{"inform": true, "alarm": false}
