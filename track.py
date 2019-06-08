@@ -9,9 +9,9 @@ import math
 from statistics import mean
 from scipy.spatial import distance
 
-radius = 5
+radius = 7
 WIDTH, HEIGHT = 640, 480
-MOVE_STEP = 100
+MOVE_STEP = 20
 
 class EyeSnipper:
     @staticmethod
@@ -201,12 +201,13 @@ class EyeSnip:
         # params.minInertiaRatio  # płaskość czy coś, to jest defaultowo ustawione na min 0.1 (chyba stosunek wysokości
         # do szerokości albo coś takiego); nie ruszałem
 
-        # params.filterByCircularity = True
-        # params.minCircularity = 0.3
+        params.filterByCircularity = True
+        params.minCircularity = 0.2
         params.filterByConvexity = True
-        params.minConvexity = 0.7  # wypukłość; musi być nie za duża, ale największa możliwa
-        params.filterByArea = True
-        params.minArea = 300  # raczej można jeszcze spokojnie zwiększyć
+        params.minConvexity = 0.3  # wypukłość; musi być nie za duża, ale największa możliwa
+        # params.filterByArea = True
+        # params.minArea = 300  # raczej można jeszcze spokojnie zwiększyć
+        params.blobColor = 0
         detector = cv2.SimpleBlobDetector_create(params)
         keyPoints = detector.detect(im)
         # global n
@@ -292,7 +293,7 @@ def main():
     i = 0
     pupil_positions = []
     pupil_centered = []
-    cursorPos = (600, 588)
+    cursorPos = (600, 450)
     while True:
         # find face and eyes #
         # capture.read()
@@ -316,7 +317,7 @@ def main():
 
         reye=EyeSnipper.get_from_hull(frame,shape,'r')
         leye=EyeSnipper.get_from_hull(frame,shape,'l')
-        heye=EyeSnipper.get_from_haar(frame,eye_cascade)
+        # reye=EyeSnipper.get_from_haar(frame,eye_cascade)
         if not (reye.scope_OK and reye.shiftbox_OK and
                 leye.scope_OK and leye.shiftbox_OK):
             print("not ok\n")
@@ -351,7 +352,7 @@ def main():
         # face = cv2.resize(face, dim, interpolation=cv2.INTER_AREA)
         # cv2.imshow("Face", face)
 
-        segments = heye.get_segments()
+        segments = reye.get_segments()
         # dim = (segments[1] * 3, segments[0] * 3)
         # segments = cv2.resize(segments, dim, interpolation=cv2.INTER_AREA)
         dim = (segments.shape[1] * 3, segments.shape[0] * 3)
@@ -362,10 +363,10 @@ def main():
         move_left, move_right, move_up, move_down = False, False, False, False
         print('i = ' + str(i))
         if i < 25:
-            if heye is not None and heye.pupil_position is not None:
-                pupil_positions.append(heye.pupil_position)
-                shiftbox_size = [heye.shiftbox['maxx'] - heye.shiftbox['minx'],
-                                 heye.shiftbox['maxy'] - heye.shiftbox['miny']]
+            if reye is not None and reye.pupil_position is not None:
+                pupil_positions.append(reye.pupil_position)
+                shiftbox_size = [reye.shiftbox['maxx'] - reye.shiftbox['minx'],
+                                 reye.shiftbox['maxy'] - reye.shiftbox['miny']]
                 print('eye size: ' + str(shiftbox_size))
                 i += 1
 
@@ -376,64 +377,65 @@ def main():
             i += 1
 
         if i > 25:
-            if heye is not None and heye.pupil_position is not None:
-                shiftbox_size = [heye.shiftbox['maxx'] - heye.shiftbox['minx'],
-                                 heye.shiftbox['maxy'] - heye.shiftbox['miny']]
+            if reye is not None and reye.pupil_position is not None:
+                shiftbox_size = [reye.shiftbox['maxx'] - reye.shiftbox['minx'],
+                                 reye.shiftbox['maxy'] - reye.shiftbox['miny']]
                 print('shiftbox size: ' + str(shiftbox_size[0]), str(shiftbox_size[1]))
-                shiftbox_center = [(heye.shiftbox['minx'] + heye.shiftbox['maxx']) // 2,
-                                   (heye.shiftbox['miny'] + heye.shiftbox['maxy']) // 2]
+                shiftbox_center = [(reye.shiftbox['minx'] + reye.shiftbox['maxx']) // 2,
+                                   (reye.shiftbox['miny'] + reye.shiftbox['maxy']) // 2]
                 print('eye size: ' + str(shiftbox_size))
-                x = heye.pupil_position[0]
-                y = heye.pupil_position[1]
+                x = reye.pupil_position[0]
+                y = reye.pupil_position[1]
                 x_movement = x - pupil_centered[0]
                 y_movement = y - pupil_centered[1]
-                if abs(x_movement) < shiftbox_size[0] // 2 and abs(y_movement) < shiftbox_size[1] // 2:
-                    if abs(x_movement) > shiftbox_size[0] // 8:
-                        if x - pupil_centered[0] < 0:
-                            move_left = True
-                        else:
-                            move_right = True
-                    if abs(y_movement) > shiftbox_size[1] // 8:
-                        if y_movement < 0:
-                            move_up = True
-                        else:
-                            move_down = True
+                # if abs(x_movement) < shiftbox_size[0] // 2 and abs(y_movement) < shiftbox_size[1] // 2:
+                if abs(x_movement) > shiftbox_size[0] // 8:
+                    if x - pupil_centered[0] < 0:
+                        move_right = True
+                    else:
+                        move_left = True
+                if abs(y_movement) > shiftbox_size[1] // 8:
+                    if y_movement < 0:
+                        move_up = True
+                    else:
+                        move_down = True
 
         print(move_left, move_right, move_up, move_down)
+
 
         sshot = cv2.imread('idylla.jpg', 0)
         sshot = cv2.cvtColor(np.array(sshot), cv2.COLOR_GRAY2BGR)
         # cursorPos=transPoint(reye.calc_darkest_point(),reye.scope,sshot.shape[:2],(1,1))
         if move_left:
-            if cursorPos[0] > MOVE_STEP:
+            if cursorPos[0] > MOVE_STEP + radius:
                 cursorPos = (cursorPos[0] - MOVE_STEP, cursorPos[1])
             else:
-                cursorPos = (0, cursorPos[1])
+                cursorPos = (radius, cursorPos[1])
         elif move_right:
-            if cursorPos[0] < 1200 - MOVE_STEP:
+            if cursorPos[0] < 1200 - MOVE_STEP - radius:
                 cursorPos = (cursorPos[0] + MOVE_STEP, cursorPos[1])
             else:
-                cursorPos = (1200, cursorPos[1])
+                cursorPos = (1200 - radius, cursorPos[1])
         if move_up:
-            if cursorPos[1] > MOVE_STEP:
+            if cursorPos[1] > MOVE_STEP + radius:
                 cursorPos = (cursorPos[0], cursorPos[1] - MOVE_STEP)
             else:
-                cursorPos = (cursorPos[0], 0)
+                cursorPos = (cursorPos[0], radius)
         elif move_down:
-            if cursorPos[0] < 1176 - MOVE_STEP:
+            if cursorPos[1] < 960 - MOVE_STEP - radius:
                 cursorPos = (cursorPos[0], cursorPos[1] + MOVE_STEP)
             else:
-                cursorPos = (cursorPos[0], 1176)
+                cursorPos = (cursorPos[0], 960 - radius)
 
-        # cv2.circle(sshot, cursorPos, radius, (0, 255, 0), 2)
-        # cv2.imshow("Screenshot", sshot)
+        cv2.circle(sshot, cursorPos, radius, (0, 0, 255), 5)
+        cv2.imshow("Screenshot", sshot)
 
         # mark face rectangle and eye contours #
         cv2.rectangle(frame, (rect.left(), rect.top()), (rect.right(), rect.bottom()), YELLOW_COLOR)
         cv2.drawContours(frame, [left_eye_hull], -1, YELLOW_COLOR, 1)
         cv2.drawContours(frame, [right_eye_hull], -1, YELLOW_COLOR, 1)
-        if heye is not None and heye.pupil_position is not None:
-            cv2.circle(frame, (heye.pupil_position[0], heye.pupil_position[1]), 5, (0, 255, 0), 2)
+        if reye is not None and reye.pupil_position is not None:
+            cv2.circle(frame, (reye.pupil_position[0], reye.pupil_position[1]), 5, (0, 255, 0), 2)
         if i > 25:
             cv2.circle(frame, tuple(pupil_centered), 2, (0, 0, 255), 2)
 
