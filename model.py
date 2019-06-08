@@ -288,7 +288,7 @@ class Retina_detector :
         else:
             self.no_eye_contact=0
             self.detect_streak+=1
-        state["no_eye_contact_since_frames"]=self.no_eye_contact
+        state["no_eye_contact_since_frames"]=math.floor(self.no_eye_contact/30)
         state["time_stamp"]=str(datetime.datetime.now())
         shiftbox={}
         if self.reye is None or self.reye.shiftbox is None:
@@ -317,7 +317,7 @@ class Retina_detector :
             state["frame_size_y"]=self.frame.shape[1]
             state["right_eye_winked"]=str(self.reye_winked())
             state["left_eye_winked"]=str(self.leye_winked())
-            state["retina_size"]=self.retina_size
+            state["retina_size"]=round(self.retina_size,2)
        #sbox={"eye_snip_"+key :int(val) for key,val in self.reye.shiftbox.items()}
         return  {**state,**sbox} #wtf, python?
 
