@@ -57,6 +57,39 @@ class EyeSnipper:
         snip.eye_aspect_ratio=ear
         return snip
 
+    @staticmethod
+    def get_from_haar(frame, cascade):
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        eyes = cascade.detectMultiScale(gray)
+        if len(eyes) == 0:
+            return None, False
+        eye = eyes[0]
+        minx = eye[0]
+        maxx = eye[0] + eye[2]
+        miny = eye[1]
+        maxy = eye[1] + eye[3]
+        marginx = int(0.2 * (maxx - minx))
+        marginy = int(0.2 * (maxy - miny))
+        #    minx += marginx
+        #    maxx -= marginx
+        maxy -= marginy
+        miny += marginy
+        shiftbox = {
+            "minx": minx,
+            "maxx": maxx,
+            "miny": miny,
+            "maxy": maxy
+        }
+        cropped_frame = frame[miny:maxy, minx:maxx]
+        scope = shiftbox["maxx"] - shiftbox["minx"], shiftbox["maxy"] - shiftbox["miny"]
+        side = 'r'
+        snip = EyeSnip(cropped_frame, side, shiftbox, scope)
+        snip.old_scope = frame.shape
+        snip.check_scope()
+        snip.shiftbox_OK = True
+        snip.eye_aspect_ratio = 1
+        return snip
+
 
 class EyeSnip:
     # def __init__(self, frame, shape, side):
@@ -246,8 +279,9 @@ def cursor_position(event, x, y, flags, param):
 
 
 def main():
-    # capture = cv2.VideoCapture(0)
-    capture = cv2.VideoCapture('LiveRecord/5.mp4')
+    eye_cascade = cv2.CascadeClassifier('haarcascade_eye_tree_eyeglasses.xml')
+    capture = cv2.VideoCapture(0)
+    # capture = cv2.VideoCapture('LiveRecord/5.mp4')
     # capture.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
     # capture.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
 
@@ -261,8 +295,8 @@ def main():
     cursorPos = (600, 588)
     while True:
         # find face and eyes #
-        capture.read()
-        capture.read()
+        # capture.read()
+        # capture.read()
         _, frame = capture.read()
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         rects = detector(gray, 0)
@@ -282,6 +316,7 @@ def main():
 
         reye=EyeSnipper.get_from_hull(frame,shape,'r')
         leye=EyeSnipper.get_from_hull(frame,shape,'l')
+        heye=EyeSnipper.get_from_haar(frame,eye_cascade)
         if not (reye.scope_OK and reye.shiftbox_OK and
                 leye.scope_OK and leye.shiftbox_OK):
             print("not ok\n")
@@ -316,19 +351,21 @@ def main():
         # face = cv2.resize(face, dim, interpolation=cv2.INTER_AREA)
         # cv2.imshow("Face", face)
 
-        segments = reye.get_segments()
+        segments = heye.get_segments()
         # dim = (segments[1] * 3, segments[0] * 3)
         # segments = cv2.resize(segments, dim, interpolation=cv2.INTER_AREA)
-        cv2.imshow("segments", segments)
+        dim = (segments.shape[1] * 3, segments.shape[0] * 3)
+        resized_segments = cv2.resize(segments, dim, interpolation=cv2.INTER_AREA)
+        cv2.imshow("segments", resized_segments)
 
         # determine pupil movement #
         move_left, move_right, move_up, move_down = False, False, False, False
         print('i = ' + str(i))
         if i < 25:
-            if reye is not None and reye.pupil_position is not None:
-                pupil_positions.append(reye.pupil_position)
-                shiftbox_size = [reye.shiftbox['maxx'] - reye.shiftbox['minx'],
-                                 reye.shiftbox['maxy'] - reye.shiftbox['miny']]
+            if heye is not None and heye.pupil_position is not None:
+                pupil_positions.append(heye.pupil_position)
+                shiftbox_size = [heye.shiftbox['maxx'] - heye.shiftbox['minx'],
+                                 heye.shiftbox['maxy'] - heye.shiftbox['miny']]
                 print('eye size: ' + str(shiftbox_size))
                 i += 1
 
@@ -339,15 +376,15 @@ def main():
             i += 1
 
         if i > 25:
-            if reye is not None and reye.pupil_position is not None:
-                shiftbox_size = [reye.shiftbox['maxx'] - reye.shiftbox['minx'],
-                                 reye.shiftbox['maxy'] - reye.shiftbox['miny']]
+            if heye is not None and heye.pupil_position is not None:
+                shiftbox_size = [heye.shiftbox['maxx'] - heye.shiftbox['minx'],
+                                 heye.shiftbox['maxy'] - heye.shiftbox['miny']]
                 print('shiftbox size: ' + str(shiftbox_size[0]), str(shiftbox_size[1]))
-                shiftbox_center = [(reye.shiftbox['minx'] + reye.shiftbox['maxx']) // 2,
-                                   (reye.shiftbox['miny'] + reye.shiftbox['maxy']) // 2]
+                shiftbox_center = [(heye.shiftbox['minx'] + heye.shiftbox['maxx']) // 2,
+                                   (heye.shiftbox['miny'] + heye.shiftbox['maxy']) // 2]
                 print('eye size: ' + str(shiftbox_size))
-                x = reye.pupil_position[0]
-                y = reye.pupil_position[1]
+                x = heye.pupil_position[0]
+                y = heye.pupil_position[1]
                 x_movement = x - pupil_centered[0]
                 y_movement = y - pupil_centered[1]
                 if abs(x_movement) < shiftbox_size[0] // 2 and abs(y_movement) < shiftbox_size[1] // 2:
@@ -395,8 +432,8 @@ def main():
         cv2.rectangle(frame, (rect.left(), rect.top()), (rect.right(), rect.bottom()), YELLOW_COLOR)
         cv2.drawContours(frame, [left_eye_hull], -1, YELLOW_COLOR, 1)
         cv2.drawContours(frame, [right_eye_hull], -1, YELLOW_COLOR, 1)
-        if reye is not None and reye.pupil_position is not None:
-            cv2.circle(frame, (reye.pupil_position[0], reye.pupil_position[1]), 5, (0, 255, 0), 2)
+        if heye is not None and heye.pupil_position is not None:
+            cv2.circle(frame, (heye.pupil_position[0], heye.pupil_position[1]), 5, (0, 255, 0), 2)
         if i > 25:
             cv2.circle(frame, tuple(pupil_centered), 2, (0, 0, 255), 2)
 
