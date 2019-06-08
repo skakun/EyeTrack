@@ -296,7 +296,10 @@ def move_cursor(move_left, move_right, move_up, move_down, cursor_pos):
             cursor_pos = (cursor_pos[0], cursor_pos[1] + MOVE_STEP)
         else:
             cursor_pos = (cursor_pos[0], 960 - radius)
+<<<<<<< HEAD
     pag.moveTo(cursor_pos)
+=======
+>>>>>>> cac84d3a0ef14b2255a4cc1b9c523aa5e6071528
     return cursor_pos
 
 
@@ -450,7 +453,6 @@ class Retina_detector :
         cv2.circle(sshot, self.cursor_pos, radius, (0, 0, 255), 5)
         cv2.imshow("Screenshot", sshot)
         cv2.waitKey(1)
-
         if self.calibration_frame_count > 25:
             print(self.pupil_centered)
             cv2.circle(self.frame, (int(self.pupil_centered[0]), int(self.pupil_centered[1])), 2, (0, 0, 255), 2)
