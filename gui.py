@@ -7,7 +7,6 @@ from PyQt5 import Qt
 import json
 import os
 
-
 class MainWindow(QMainWindow):
     def __init__(self):
         QMainWindow.__init__(self)
@@ -46,7 +45,8 @@ class MainWindow(QMainWindow):
 
         with open('alert_data.pkl', 'w') as f:
             f.truncate(0)
-            f.write('{"alarm": ' + str(self.alarm) + ',"inform": ' + str(self.inform) + '}')
+            alert_data = {'alarm': self.alarm, 'inform': self.inform}
+            json.dumps(alert_data, f)
 
     def on_inform_click(self):
         print('Powiadomienie')
@@ -57,13 +57,13 @@ class MainWindow(QMainWindow):
 
         with open('alert_data.pkl', 'w') as f:
             f.truncate(0)
-            f.write('{"alarm": ' + str(self.alarm) + ',"inform": ' + str(self.inform) + '}')
+            alert_data = {'alarm': self.alarm, 'inform': self.inform}
+            json.dumps(alert_data, f)
 
 
 def main():
     app = QtWidgets.QApplication(sys.argv)
     mainWin = MainWindow()
-    # mainWin.setWindowModality(QtCore.Qt.NonModal)
     mainWin.show()
     sys.exit(app.exec_())
 

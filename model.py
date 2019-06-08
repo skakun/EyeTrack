@@ -282,8 +282,8 @@ class Retina_detector :
     def get_state(self):
         state={}
         state["detected"]=self.detected
-        state["alarm"]=str(external_state.alarm)
-        state["wanna_talk"]=str(external_state.wanna_talk)
+       # state["alarm"]=str(external_state.alarm)
+       #state["wanna_talk"]=str(external_state.wanna_talk)
         if not self.detected or ( self.reye_detected() and self.leye_detected()):
             self.no_eye_contact+=1
             self.detect_streak=0

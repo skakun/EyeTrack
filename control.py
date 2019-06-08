@@ -45,7 +45,6 @@ class Control:
         if reye is not None and pupil_position is not None:
             shiftbox_size = [reye.shiftbox['maxx'] - reye.shiftbox['minx'],
                              reye.shiftbox['maxy'] - reye.shiftbox['miny']]
-            print('eye size: ' + str(shiftbox_size))
             x = pupil_position[0]
             y = pupil_position[1]
             x_movement = x - pupil_centered[0]
