@@ -211,6 +211,7 @@ class EyeSnip:
             cv2.circle(self.snip, (x, y), r, (255, 255, 0), 2)
             break
         x,y=trans_point((x,y),self.scope,self.old_scope)
+        print(x, y)
         print(detected)
         return  im,(x,y),detected,s
 #def segment_edges(self):
@@ -247,8 +248,9 @@ def calibrate_pupil(pupil_positions):
 
 
 def get_pupil_movement(reye, pupil_position, pupil_centered):
+    print(pupil_position)
     move_left, move_right, move_up, move_down = False, False, False, False
-    if reye is not None and reye.pupil_position is not None:
+    if reye is not None and pupil_position is not None:
         shiftbox_size = [reye.shiftbox['maxx'] - reye.shiftbox['minx'],
                          reye.shiftbox['maxy'] - reye.shiftbox['miny']]
         print('eye size: ' + str(shiftbox_size))
@@ -267,6 +269,7 @@ def get_pupil_movement(reye, pupil_position, pupil_centered):
                 move_up = True
             else:
                 move_down = True
+    print(pupil_position)
     return move_left, move_right, move_up, move_down
 
 
@@ -445,6 +448,10 @@ class Retina_detector :
         sshot = cv2.cvtColor(np.array(sshot), cv2.COLOR_GRAY2BGR)
         cv2.circle(sshot, self.cursor_pos, radius, (0, 0, 255), 5)
         cv2.imshow("Screenshot", sshot)
+
+        if self.calibration_frame_count > 25:
+            print(self.pupil_centered)
+            cv2.circle(self.frame, (int(self.pupil_centered[0]), int(self.pupil_centered[1])), 2, (0, 0, 255), 2)
 
 #############################    
             
