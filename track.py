@@ -6,6 +6,7 @@ import sys
 import pickle
 import json
 from flask  import Flask 
+import control
 centrum=(None,None)
 url='/track/'
 parser=argparse.ArgumentParser()
@@ -24,8 +25,10 @@ if detec.snip_method==SnipMethod.haar:
     detec.set_cascade()
 if detec.snip_method==SnipMethod.convex:
     detec.set_predictor()
+ctrl=control.Control()
 while True:
     jc=detec.detect()
+    ctrl.proc_control(detec)
     fp=open('cexch.pkl','w')
     json.dump(jc,fp)
     fp.close()
