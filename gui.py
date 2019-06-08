@@ -22,7 +22,6 @@ class MainWindow(QMainWindow):
         alarm_button.setStyleSheet("QPushButton {background:#ffbfbc} QPushButton:hover {background:#ffa499}")
         alarm_button.resize(640, 360)
         alarm_button.move(0, 0)
-        # alarm_button.setStyleSheet(":hover{background:#ffa499}")
 
         inform_button.setFont(font)
         inform_button.setStyleSheet("QPushButton {background:#cceeff} QPushButton:hover {background: #9dd4f9}")
