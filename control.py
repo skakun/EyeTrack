@@ -43,7 +43,6 @@ class Control:
             pupil_centered.append(mean([elem[1] for elem in max_pos[1]]))
         return pupil_centered
 
-
     def get_pupil_movement(reye, pupil_position, pupil_centered):
         print(pupil_position)
         move_left, move_right, move_up, move_down = False, False, False, False
@@ -98,9 +97,13 @@ class Control:
     def proc_control(self,detector):
             radius=Control.radius
             self.move_mode_open=self.move_mode_open  != detector.leye_winked()
+<<<<<<< HEAD
             if detector.reye_winked():
                 print("CLICK")
                 pag.click()
+=======
+            print(detector.calibration_frame_count)
+>>>>>>> fbe505a2a4e1a7a9f8d17e283669c22b6ee55b18
             if detector.leye_winked():
                 print("MODE CHANGED")
             if not self.move_mode_open:
@@ -113,6 +116,7 @@ class Control:
                 detector.calibration_frame_count += 1
 
             if detector.calibration_frame_count == 25:
+                print(detector.pupil_positions_MTARNOW)
                 detector.pupil_centered = Control.calibrate_pupil(detector.pupil_positions_MTARNOW)
                 detector.calibration_frame_count += 1
 
@@ -125,6 +129,3 @@ class Control:
 #           cv2.circle(sshot, detector.cursor_pos, radius, (0, 0, 255), 5)
 #           cv2.imshow("Screenshot", sshot)
 #           cv2.waitKey(1)
-            if detector.calibration_frame_count > 25:
-                print(detector.pupil_centered)
-                cv2.circle(detector.frame, (int(detector.pupil_centered[0]), int(detector.pupil_centered[1])), 2, (0, 0, 255), 2)

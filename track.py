@@ -5,9 +5,13 @@ from model import SnipMethod,CenterDetectMethod
 import sys
 import pickle
 import json
-from flask  import Flask 
+from flask  import Flask
+from PyQt5 import QtWidgets
+
 import control
 import gui
+from gui import MainWindow
+
 
 centrum=(None,None)
 url='/track/'
@@ -31,10 +35,18 @@ if detec.snip_method==SnipMethod.haar:
 if detec.snip_method==SnipMethod.convex:
     detec.set_predictor()
 ctrl=control.Control()
+
+# if QtWidgets.QApplication.instance() is None:
+#     app = QtWidgets.QApplication(sys.argv)
+# win = MainWindow()
+# win.show()
+# win.
 # gui.main()
 while True:
     jc=detec.detect()
-    if args.use_control:
+    print('sdsdsdsdsd')
+    print(args.use_control)
+    if args.use_control and detec.detected:
         ctrl.proc_control(detec)
     fp=open('cexch.pkl','w')
     json.dump(jc,fp)

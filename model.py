@@ -206,13 +206,11 @@ class EyeSnip:
             y = int(keypoint.pt[1])
             s = keypoint.size
             r = int(math.floor(s/2))
-         #  print x, y
-            print(x,y)
             cv2.circle(self.snip, (x, y), r, (255, 255, 0), 2)
             break
-        x,y=trans_point((x,y),self.scope,self.old_scope)
-        print(x, y)
-        print(detected)
+        # x,y=trans_point((x,y),self.scope,self.old_scope)
+        x, y = int(self.shiftbox['minx'] + x), int(self.shiftbox['miny'] + y)
+        print('x, y: ' + str(x) + ', ' + str(y))
         return  im,(x,y),detected,s
 #def segment_edges(self):
 #       img=self.canny_edges()
@@ -257,8 +255,12 @@ class Retina_detector :
         self.show_leye=leye
         self.show_reye=reye
     def reye_winked(self):
+        print(self.prev_reye_detected)
+        print(not self.reye_detected())
         return  self.prev_reye_detected and not self.reye_detected()
     def leye_winked(self):
+        print(self.prev_leye_detected)
+        print(not self.leye_detected())
         return  self.prev_leye_detected and not self.leye_detected()
     def reye_detected(self):
         if self.reye is None:
@@ -339,7 +341,8 @@ class Retina_detector :
             if len(rects)<1:
                 if self.show_frame:
                     cv2.imshow('frame',self.frame)
-                    cv2.waitKey(1)
+                    if cv2.waitKey(1) == ord('q'):
+                        raise KeyboardInterrupt
                 self.detected=False
                #print("none found")
                 return self.get_state()
@@ -357,28 +360,39 @@ class Retina_detector :
         if self.reye is None:
             self.detected=False
             return self.get_state()
+
+        if self.calibration_frame_count > 25:
+            print('ceeeeeeeen')
+            print(self.pupil_centered)
+            cv2.circle(self.frame, (int(self.pupil_centered[0]), int(self.pupil_centered[1])), 2, (0, 0, 255), 2)
         if not self.detected and  self.show_frame:
             cv2.imshow('frame',self.frame)
-            cv2.waitKey(1)
+            if cv2.waitKey(1) == ord('q'):
+                raise KeyboardInterrupt
             return self.get_state()
         if self.center_detec_method==CenterDetectMethod.blob:
             segframe,ncenter,seg_found,self.retina_size=self.reye.get_segments()
             self.detected=self.detected and seg_found
         if self.detected:
             self.center=ncenter
+            print('ncenter: ' + str(ncenter))
             self.pupil_positions.append(self.center)
         print("center {}\n".format(self.center))
-        cv2.circle(self.frame,ncenter, radius,(0, 255, 0))
+        # cv2.circle(self.frame,ncenter, radius,(0, 255, 0))
         if self.show_frame :
             cv2.imshow("frame", self.frame)
-            cv2.waitKey(1)
+            if cv2.waitKey(1) == ord('q'):
+                raise KeyboardInterrupt
         if  self.show_reye:
             cv2.imshow("reye",self.reye.snip)
-            cv2.waitKey(1)
+            if cv2.waitKey(1) == ord('q'):
+                raise KeyboardInterrupt
         if  self.show_leye:
             cv2.imshow("leye",self.leye.snip)
-            cv2.waitKey(1)
+            if cv2.waitKey(1) == ord('q'):
+                raise KeyboardInterrupt
         if self.show_contour:
             cv2.imshow("segments",segframe)
-            cv2.waitKey(1)
+            if cv2.waitKey(1) == ord('q'):
+                raise KeyboardInterrupt
         return self.get_state()
