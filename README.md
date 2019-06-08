@@ -2,8 +2,10 @@
 ## Usage
 	The retina detector is ran from file track.py
 ```Console
-usage: track.py [-h] [-c CAPTURE] [-f] [-s] [--snip {haar,convex,skip}]
+usage: track.py [-h] [-c CAPTURE] [-f] [--showleye] [--showreye]
+                [--snip {haar,convex,skip}]
                 [--center {CenterDetectMethod.blob,CenterDetectMethod.darkestpoint}]
+                [--use_control USE_CONTROL]
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -11,11 +13,15 @@ optional arguments:
                         name of videofile to be analysied or numer of port
                         with capture device.
   -f, --showframe       show full frame
-  -s, --showsnip        show frame cropped to eye surroundings
+  --showleye, -l        show frame cropped to left eye surroundings
+  --showreye, -r        show frame cropped to right eye surroundings
   --snip {haar,convex,skip}
                         method of detecting eye region
   --center {CenterDetectMethod.blob,CenterDetectMethod.darkestpoint}
                         method of detecting retina center
+  --use_control USE_CONTROL
+                        use eye movements to control cursor
+
 ```
 Debug calling(showing eye snip from default webcam with marked retina) is:
 ```Console

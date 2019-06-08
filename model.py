@@ -288,7 +288,7 @@ class Retina_detector :
         else:
             self.no_eye_contact=0
             self.detect_streak+=1
-        state["no_eye_contact_since_frames"]=math.floor(self.no_eye_contact/30)
+        state["no_eye_contact_since_frames"]=math.floor(self.no_eye_contact/10)
         state["time_stamp"]=str(datetime.datetime.now())
         shiftbox={}
         if self.reye is None or self.reye.shiftbox is None:
