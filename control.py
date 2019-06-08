@@ -11,8 +11,8 @@ class Control:
     def __init__(self):
         self.move_mode_open=False
         pag.FAILSAFE=False
-        res=subprocess.check_output("xrandr | grep '*' |awk  '{print $1}' |head -1" )
-        res=res.split('x')
+        res=subprocess.check_output("xrandr | grep '*' |awk  '{print $1}' |head -1" ,shell=True)
+        res=res.decode('utf8').split("x")
         self.res=[ int(i) for i in res]
     def calibrate_pupil(pupil_positions):
         max_pos = None
@@ -69,7 +69,7 @@ class Control:
         return move_left, move_right, move_up, move_down
 
 
-    def move_cursor(move_left, move_right, move_up, move_down, cursor_pos):
+    def move_cursor(self,move_left, move_right, move_up, move_down, cursor_pos):
         radius=Control.radius
         MOVE_STEP=Control.MOVE_STEP
         print(move_left, move_right, move_up, move_down)
@@ -118,7 +118,7 @@ class Control:
 
             if detector.calibration_frame_count > 25:
                 move_left, move_right, move_up, move_down = Control.get_pupil_movement(detector.reye, detector.center, detector.pupil_centered)
-                detector.cursor_pos = Control.move_cursor(move_left, move_right, move_up, move_down, detector.cursor_pos)
+                detector.cursor_pos = self.move_cursor(move_left, move_right, move_up, move_down, detector.cursor_pos)
 
 #           sshot = cv2.imread('idylla.jpg', 0)
 #           sshot = cv2.cvtColor(np.array(sshot), cv2.COLOR_GRAY2BGR)
