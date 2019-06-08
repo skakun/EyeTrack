@@ -296,10 +296,7 @@ def move_cursor(move_left, move_right, move_up, move_down, cursor_pos):
             cursor_pos = (cursor_pos[0], cursor_pos[1] + MOVE_STEP)
         else:
             cursor_pos = (cursor_pos[0], 960 - radius)
-<<<<<<< HEAD
     pag.moveTo(cursor_pos)
-=======
->>>>>>> cac84d3a0ef14b2255a4cc1b9c523aa5e6071528
     return cursor_pos
 
 
