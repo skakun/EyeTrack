@@ -4,6 +4,9 @@ import cv2
 import numpy as np
 import subprocess
 from statistics import mean
+from sys import platform
+if platform=="windows":
+    from win32api import GetSystemMetrics
 ##########################################################
 class Control:
     radius=5
@@ -11,9 +14,13 @@ class Control:
     def __init__(self):
         self.move_mode_open=False
         pag.FAILSAFE=False
-        res=subprocess.check_output("xrandr | grep '*' |awk  '{print $1}' |head -1" ,shell=True)
-        res=res.decode('utf8').split("x")
-        self.res=[ int(i) for i in res]
+        if platform=="windows":
+            self.res[0]=GetSystemMetrics(0)
+            self.res[1]=GetSystemMetrics(1)
+        else:
+            res=subprocess.check_output("xrandr | grep '*' |awk  '{print $1}' |head -1" ,shell=True)
+            res=res.decode('utf8').split("x")
+            self.res=[ int(i) for i in res]
     def calibrate_pupil(pupil_positions):
         max_pos = None
         pos_counts = [[0, []] for _ in range(45)]
@@ -97,13 +104,10 @@ class Control:
     def proc_control(self,detector):
             radius=Control.radius
             self.move_mode_open=self.move_mode_open  != detector.leye_winked()
-<<<<<<< HEAD
             if detector.reye_winked():
                 print("CLICK")
                 pag.click()
-=======
             print(detector.calibration_frame_count)
->>>>>>> fbe505a2a4e1a7a9f8d17e283669c22b6ee55b18
             if detector.leye_winked():
                 print("MODE CHANGED")
             if not self.move_mode_open:
@@ -123,6 +127,7 @@ class Control:
             if detector.calibration_frame_count > 25:
                 move_left, move_right, move_up, move_down = Control.get_pupil_movement(detector.reye, detector.center, detector.pupil_centered)
                 detector.cursor_pos = self.move_cursor(move_left, move_right, move_up, move_down, detector.cursor_pos)
+                detector.move_mode=self.move_mode_open
 
 #           sshot = cv2.imread('idylla.jpg', 0)
 #           sshot = cv2.cvtColor(np.array(sshot), cv2.COLOR_GRAY2BGR)

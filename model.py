@@ -233,6 +233,7 @@ class Retina_detector :
         self.show_snip=False
         self.center=None
         self.detected=False
+        self.move_mode=False
         self.reye=None
         self.prev_reye_detected=False
         self.prev_leye_detected=False
@@ -282,6 +283,7 @@ class Retina_detector :
     def get_state(self):
         state={}
         state["detected"]=self.detected
+        state["move_mode_open"]=self.move_mode
        # state["alarm"]=str(external_state.alarm)
        #state["wanna_talk"]=str(external_state.wanna_talk)
         if not self.detected or ( self.reye_detected() and self.leye_detected()):

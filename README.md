@@ -41,6 +41,7 @@ Program should serve similar json on assigned endpoint.
 {  
    "detected":true,
    "alarm":"False",
+   "move_mode_open": false,
    "wanna_talk":"False",
    "time_stamp":"2019-05-31 17:07:28.434922",
    "no_eye_contact_since_frames":0,
@@ -59,6 +60,8 @@ Program should serve similar json on assigned endpoint.
 </pre>
 ### detected
 	Was eye detected in current iteration?
+### move_mode_open
+    Has user opened mode of controling cursor with eye? Info for gui
 ### alarm
 	Did patient called emergency in GUI?
 ### wanna_talk
