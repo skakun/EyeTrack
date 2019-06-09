@@ -44,8 +44,6 @@ ctrl=control.Control()
 # gui.main()
 while True:
     jc=detec.detect()
-    print("jc={}".format(jc))
-    print(json.dumps(jc))
     if args.use_control and detec.detected:
         ctrl.proc_control(detec)
     fp=open('cexch.pkl','w')

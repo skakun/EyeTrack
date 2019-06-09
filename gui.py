@@ -17,7 +17,7 @@ class MyQThread(QtCore.QThread):
             time.sleep(3)
             with open('cexch.pkl') as f:
                 json_data = json.load(f)
-            move_mode_open = json_data['move_mode_open']
+            move_mode_open =( json_data['move_mode_open']=="True")
             print(move_mode_open)
             self.moveModeSignal.emit(move_mode_open)
 
@@ -102,7 +102,7 @@ class MainWindow(QMainWindow):
 
         with open('alert_data.pkl', 'w') as f:
             f.truncate(0)
-            alert_data = {'alarm': self.alarm, 'inform': self.inform}
+            alert_data = {'alarm': self.alarm, 'wanna_talk': self.inform}
             json.dump(alert_data, f)
         self.update()
 
@@ -121,7 +121,7 @@ class MainWindow(QMainWindow):
 
         with open('alert_data.pkl', 'w') as f:
             f.truncate(0)
-            alert_data = {'alarm': self.alarm, 'inform': self.inform}
+            alert_data = {'alarm': self.alarm, 'wanna_talk': self.inform}
             json.dump(alert_data, f)
         self.update()
 

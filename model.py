@@ -189,9 +189,9 @@ class EyeSnip:
         params.maxThreshold=30
         params.thresholdStep=5
         params.filterByCircularity=True
-        params.minCircularity=0.2
+        params.minCircularity=0.5
         params.filterByConvexity=True
-        params.minConvexity=0.3
+        params.minConvexity=0.5
 #       params.filterByColor=True
         params.blobColor= 0
         detector=cv2.SimpleBlobDetector_create(params)
@@ -257,9 +257,9 @@ class Retina_detector :
         self.show_leye=leye
         self.show_reye=reye
     def reye_winked(self):
-        return  self.prev_reye_detected and not self.reye_detected()
+        return  self.reye.eye_aspect_ratio<0.15
     def leye_winked(self):
-        return  self.prev_leye_detected and not self.leye_detected()
+        return  self.leye.eye_aspect_ratio<0.15
     def reye_detected(self):
         if self.reye is None:
             return  False
@@ -279,9 +279,8 @@ class Retina_detector :
         (self.rstart, self.rend) = face_utils.FACIAL_LANDMARKS_IDXS["right_eye"]
     def get_state(self):
         state={}
-        state["detected"]=self.detected
-        print("move mode {}".format(self.detected))
-        state["move_mode_open"]=self.move_mode
+        state["detected"]=str(self.detected)
+        state["move_mode_open"]=str(self.move_mode)
        # state["alarm"]=str(external_state.alarm)
        #state["wanna_talk"]=str(external_state.wanna_talk)
         if not self.detected or ( self.reye_detected() and self.leye_detected()):
@@ -301,6 +300,7 @@ class Retina_detector :
         else:
             shiftbox=self.reye.shiftbox
         sbox={"eye_snip_"+key :int(val) for key,val in shiftbox.items()}
+        state["no_eye_contact_since_frames"]=math.floor(self.no_eye_contact/10)
         if not self.detected:
             state["center_x"]=None
             state["center_y"]=None
@@ -309,7 +309,6 @@ class Retina_detector :
             state["right_eye_winked"]=None
             state["left_eye_winked"]=None
             state["retina_size"]=None
-            state["no_eye_contact_since_frames"]=None
             state["time_stamp"]=None
         #   return state #TODO add empty shiftbox
         else:
@@ -320,7 +319,6 @@ class Retina_detector :
             state["right_eye_winked"]=str(self.reye_winked())
             state["left_eye_winked"]=str(self.leye_winked())
             state["retina_size"]=round(self.retina_size,2)
-            state["no_eye_contact_since_frames"]=math.floor(self.no_eye_contact/10)
             state["time_stamp"]=str(datetime.datetime.now())
        #sbox={"eye_snip_"+key :int(val) for key,val in self.reye.shiftbox.items()}
         state["base64"]=self.get64()
@@ -332,6 +330,10 @@ class Retina_detector :
         jpg_as_text=base64.b64encode(buf)
         jpg_as_text=str(jpg_as_text)
         return jpg_as_text[2:-1]
+  # def log(self):
+  #     f=open("log.txt",'a')
+  #     f.write(json.dumps(self.get_state()))
+  #     f.close()
     def detect(self):
         _,self.frame=self.capture.read()
         self.detected=False
@@ -362,8 +364,8 @@ class Retina_detector :
                     shape,'r')
             self.leye,self.detected=EyeSnipper.get_from_hull(self.frame,
                     shape,'l')
-            # print("reye aspect ratio={}\n".format(self.reye.eye_aspect_ratio))
-            # print("leye aspect ratio={}\n".format(self.reye.eye_aspect_ratio))
+            print("reye aspect ratio={}\n".format(self.reye.eye_aspect_ratio))
+            print("leye aspect ratio={}\n".format(self.reye.eye_aspect_ratio))
         if self.snip_method==SnipMethod.skip:
             self.reye,self.detected=EyeSnipper.skip(self.frame)
         if self.reye is None:
