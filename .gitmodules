@@ -1,0 +1,3 @@
+[submodule "GibonPulse"]
+	path = GibonPulse
+	url = https://github.com/SimonAvr/GibonPulse

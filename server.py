@@ -29,8 +29,8 @@ def bible():
 def postJsonHandler():
     global j
     global tmp
-    f = open(app.config["WORKING_DIR"]+'GibonPuls/data.txt', "r")
-    f1  =open(app.config["WORKING_DIR"]+'GibonPuls/data2.txt',"r")
+    f = open(app.config["WORKING_DIR"]+'GibonPulse/data.txt', "r")
+    f1  =open(app.config["WORKING_DIR"]+'GibonPulse/data2.txt',"r")
     lines = f.readlines()
     lines1 = f1.readlines()
     try:
