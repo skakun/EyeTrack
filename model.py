@@ -11,6 +11,7 @@ import sys
 import math
 import copy
 import datetime
+import base64
 from enum import Enum
 from scipy.spatial import distance
 from statistics import mean
@@ -280,6 +281,7 @@ class Retina_detector :
         state={}
         state["detected"]=self.detected
         state["move_mode_open"]=self.move_mode
+        state["base64"]=self.get64()
        # state["alarm"]=str(external_state.alarm)
        #state["wanna_talk"]=str(external_state.wanna_talk)
         if not self.detected or ( self.reye_detected() and self.leye_detected()):
@@ -322,10 +324,16 @@ class Retina_detector :
             state["time_stamp"]=str(datetime.datetime.now())
        #sbox={"eye_snip_"+key :int(val) for key,val in self.reye.shiftbox.items()}
         return  {**state,**sbox} #wtf, python?
-
+    def get64(self):
+        if self.frame is None:
+            return None
+        retval, buf=cv2.imencode('.jpg',self.frame)
+        jpg_as_text=base64.b64encode(buf)
+        jpg_as_text=str(jpg_as_text)
+        return jpg_as_text[2:-1]
     def detect(self):
         _,self.frame=self.capture.read()
-        self.detected=True
+        self.detected=False
         if self.frame is None or type(self.frame) is 'NoneType':
             return self.get_state()
         gray = cv2.cvtColor(self.frame, cv2.COLOR_BGR2GRAY)
