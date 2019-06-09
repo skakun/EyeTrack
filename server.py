@@ -1,7 +1,9 @@
 from flask  import Flask,jsonify,make_response
 import json
 import os
+import random
 import subprocess
+from gpvars import tmp,j
 from config import BaseConfig
 url='/track/'
 app=Flask(__name__)
@@ -23,3 +25,25 @@ def serve():
 def bible():
     return subprocess.check_output("randverse")
 
+@app.route('/pulse', methods=['POST','GET'])
+def postJsonHandler():
+    global j
+    global tmp
+    f = open(app.config["WORKING_DIR"]+'GibonPuls/data.txt', "r")
+    f1  =open(app.config["WORKING_DIR"]+'GibonPuls/data2.txt',"r")
+    lines = f.readlines()
+    lines1 = f1.readlines()
+    json = {"status": (lines[0]).replace('\n', ''),
+            "heart_rate": (lines[1]).replace('\n', ''),
+            "head_positions": (lines[2]).replace('\n', ''),
+            "forehead_position": (lines[3]).replace('\n', ''),
+            "fps": (lines[4]).replace('\n', ''),
+            "breath_rate": int(random.uniform(17, 23)),# (lines1[0]).replace('\n', ''),
+            "convolutions:": (lines1[1]).replace('\n', ''),
+            "breath": str(tmp[j:j+120])}
+    j += 30
+    if j >= len(tmp):
+        j = 0
+    f.close()
+    f1.close()
+    return jsonify(json)
