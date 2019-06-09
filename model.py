@@ -292,8 +292,6 @@ class Retina_detector :
         else:
             self.no_eye_contact=0
             self.detect_streak+=1
-        state["no_eye_contact_since_frames"]=math.floor(self.no_eye_contact/10)
-        state["time_stamp"]=str(datetime.datetime.now())
         shiftbox={}
         if self.reye is None or self.reye.shiftbox is None:
             shiftbox = {
@@ -313,6 +311,8 @@ class Retina_detector :
             state["right_eye_winked"]=None
             state["left_eye_winked"]=None
             state["retina_size"]=None
+            state["no_eye_contact_since_frames"]=None
+            state["time_stamp"]=None
         #   return state #TODO add empty shiftbox
         else:
             state["center_x"]=self.center[0]
@@ -322,12 +322,14 @@ class Retina_detector :
             state["right_eye_winked"]=str(self.reye_winked())
             state["left_eye_winked"]=str(self.leye_winked())
             state["retina_size"]=round(self.retina_size,2)
+            state["no_eye_contact_since_frames"]=math.floor(self.no_eye_contact/10)
+            state["time_stamp"]=str(datetime.datetime.now())
        #sbox={"eye_snip_"+key :int(val) for key,val in self.reye.shiftbox.items()}
         return  {**state,**sbox} #wtf, python?
 
     def detect(self):
         _,self.frame=self.capture.read()
-        if self.frame is None:
+        if self.frame is None or type(self.frame) is 'NoneType':
             return self.get_state()
         gray = cv2.cvtColor(self.frame, cv2.COLOR_BGR2GRAY)
 
