@@ -329,6 +329,7 @@ class Retina_detector :
 
     def detect(self):
         _,self.frame=self.capture.read()
+        self.detected=False
         if self.frame is None or type(self.frame) is 'NoneType':
             return self.get_state()
         gray = cv2.cvtColor(self.frame, cv2.COLOR_BGR2GRAY)
