@@ -279,8 +279,8 @@ class Retina_detector :
         (self.rstart, self.rend) = face_utils.FACIAL_LANDMARKS_IDXS["right_eye"]
     def get_state(self):
         state={}
-        state["detected"]=self.detected
-        state["move_mode_open"]=self.move_mode
+        state["detected"]=str(self.detected)
+        state["move_mode_open"]=str(self.move_mode)
         state["base64"]=self.get64()
        # state["alarm"]=str(external_state.alarm)
        #state["wanna_talk"]=str(external_state.wanna_talk)
@@ -327,7 +327,7 @@ class Retina_detector :
     def get64(self):
         if self.frame is None:
             return None
-        retval, buf=cv2.imencode('.jpg',self.frame)
+        retval, buf=cv2.imencode('.jpg',cv2.resize(self.frame,(128,128)))
         jpg_as_text=base64.b64encode(buf)
         jpg_as_text=str(jpg_as_text)
         return jpg_as_text[2:-1]
