@@ -44,12 +44,8 @@ ctrl=control.Control()
 # gui.main()
 while True:
     jc=detec.detect()
-##Why? ~Skakun
-  # print('sdsdsdsdsd')
-  # print(args.use_control)
-
     if args.use_control and detec.detected:
-        move_mode=ctrl.proc_control(detec)
+        ctrl.proc_control(detec)
     fp=open('cexch.pkl','w')
     json.dump(jc,fp)
     fp.close()

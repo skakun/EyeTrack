@@ -12,7 +12,7 @@ class Control:
     radius=5
     MOVE_STEP = 20
     def __init__(self):
-        self.move_mode_open=False
+        self.move_mode_open=True
         pag.FAILSAFE=False
         if platform=="windows":
             self.res[0]=GetSystemMetrics(0)
@@ -38,7 +38,6 @@ class Control:
         for pos in pupil_positions:
             y = pos[1]
             n = y // 20
-            print(y, n)
             pos_counts[n][1].append(pos)
             pos_counts[n][0] += 1
             if max_pos is None or pos_counts[n][0] > max_pos[0]:
@@ -71,14 +70,13 @@ class Control:
                     move_up = True
                 else:
                     move_down = True
-        print(pupil_position)
         return move_left, move_right, move_up, move_down
 
 
     def move_cursor(self,move_left, move_right, move_up, move_down, cursor_pos):
         radius=Control.radius
         MOVE_STEP=Control.MOVE_STEP
-        print(move_left, move_right, move_up, move_down)
+        # print(move_left, move_right, move_up, move_down)
         if move_left:
             if cursor_pos[0] > MOVE_STEP + radius:
                 cursor_pos = (cursor_pos[0] - MOVE_STEP, cursor_pos[1])
@@ -114,13 +112,14 @@ class Control:
                 return
             if detector.center is None:
                 return
+            if detector.reye_winked():
+                print("CLICK")
+                pag.click()
             if detector.calibration_frame_count < 25:
-                print(detector.center)
                 detector.pupil_positions_MTARNOW.append(detector.center)
                 detector.calibration_frame_count += 1
 
             if detector.calibration_frame_count == 25:
-                print(detector.pupil_positions_MTARNOW)
                 detector.pupil_centered = Control.calibrate_pupil(detector.pupil_positions_MTARNOW)
                 detector.calibration_frame_count += 1
 
