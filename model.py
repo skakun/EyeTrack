@@ -199,7 +199,7 @@ class EyeSnip:
         y=0
         detected=False
         s=None
-        print(keyPoints)
+        # print(keyPoints)
         for keypoint in keyPoints:
             detected=True
             x = int(keypoint.pt[0])
@@ -210,7 +210,7 @@ class EyeSnip:
             break
         # x,y=trans_point((x,y),self.scope,self.old_scope)
         x, y = int(self.shiftbox['minx'] + x), int(self.shiftbox['miny'] + y)
-        print('x, y: ' + str(x) + ', ' + str(y))
+        # print('x, y: ' + str(x) + ', ' + str(y))
         return  im,(x,y),detected,s
 #def segment_edges(self):
 #       img=self.canny_edges()
@@ -256,12 +256,8 @@ class Retina_detector :
         self.show_leye=leye
         self.show_reye=reye
     def reye_winked(self):
-        print(self.prev_reye_detected)
-        print(not self.reye_detected())
         return  self.prev_reye_detected and not self.reye_detected()
     def leye_winked(self):
-        print(self.prev_leye_detected)
-        print(not self.leye_detected())
         return  self.prev_leye_detected and not self.leye_detected()
     def reye_detected(self):
         if self.reye is None:
@@ -349,7 +345,6 @@ class Retina_detector :
                     if cv2.waitKey(1) == ord('q'):
                         raise KeyboardInterrupt
                 self.detected=False
-               #print("none found")
                 return self.get_state()
             rect=rects[0]
             shape=self.predictor(gray,rect)
@@ -358,8 +353,8 @@ class Retina_detector :
                     shape,'r')
             self.leye,self.detected=EyeSnipper.get_from_hull(self.frame,
                     shape,'l')
-            print("reye aspect ratio={}\n".format(self.reye.eye_aspect_ratio))
-            print("leye aspect ratio={}\n".format(self.reye.eye_aspect_ratio))
+            # print("reye aspect ratio={}\n".format(self.reye.eye_aspect_ratio))
+            # print("leye aspect ratio={}\n".format(self.reye.eye_aspect_ratio))
         if self.snip_method==SnipMethod.skip:
             self.reye,self.detected=EyeSnipper.skip(self.frame)
         if self.reye is None:
@@ -367,8 +362,6 @@ class Retina_detector :
             return self.get_state()
 
         if self.calibration_frame_count > 25:
-            print('ceeeeeeeen')
-            print(self.pupil_centered)
             cv2.circle(self.frame, (int(self.pupil_centered[0]), int(self.pupil_centered[1])), 2, (0, 0, 255), 2)
         if not self.detected and  self.show_frame:
             cv2.imshow('frame',self.frame)
@@ -380,9 +373,8 @@ class Retina_detector :
             self.detected=self.detected and seg_found
         if self.detected:
             self.center=ncenter
-            print('ncenter: ' + str(ncenter))
             self.pupil_positions.append(self.center)
-        print("center {}\n".format(self.center))
+        # print("center {}\n".format(self.center))
         # cv2.circle(self.frame,ncenter, radius,(0, 255, 0))
         if self.show_frame :
             cv2.imshow("frame", self.frame)
