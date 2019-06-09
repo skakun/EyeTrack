@@ -279,9 +279,9 @@ class Retina_detector :
         (self.rstart, self.rend) = face_utils.FACIAL_LANDMARKS_IDXS["right_eye"]
     def get_state(self):
         state={}
-        state["detected"]=str(self.detected)
-        state["move_mode_open"]=str(self.move_mode)
-        state["base64"]=self.get64()
+        state["detected"]=self.detected
+        print("move mode {}".format(self.detected))
+        state["move_mode_open"]=self.move_mode
        # state["alarm"]=str(external_state.alarm)
        #state["wanna_talk"]=str(external_state.wanna_talk)
         if not self.detected or ( self.reye_detected() and self.leye_detected()):
@@ -323,7 +323,8 @@ class Retina_detector :
             state["no_eye_contact_since_frames"]=math.floor(self.no_eye_contact/10)
             state["time_stamp"]=str(datetime.datetime.now())
        #sbox={"eye_snip_"+key :int(val) for key,val in self.reye.shiftbox.items()}
-        return  {**state,**sbox} #wtf, python?
+        state["base64"]=self.get64()
+        return dict( {**state,**sbox} )#wtf, python?
     def get64(self):
         if self.frame is None:
             return None

@@ -5,6 +5,7 @@ from PyQt5.QtCore import QSize
 from PyQt5.Qt import QPainter, QFont, QBrush
 import json
 import time
+import ast
 
 
 class MyQThread(QtCore.QThread):
