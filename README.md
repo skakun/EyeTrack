@@ -1,4 +1,5 @@
 # EyeTrack
+Module of program *Sentiel* enabling oversing over disabled patient. This one proviedes to patient control over cursor and communication with medical asistant via movements of retina, and sends to him medical parameters.
 ## Usage
 	The retina detector is ran from file track.py
 ```Console
@@ -86,3 +87,5 @@ Program should serve similar json on assigned endpoint.
 	Dimensions of area around eye, to which frame was cropped.
 ### time_stamp
     Time of last detection
+
+The others are described in submodule *GibbonPulse*
